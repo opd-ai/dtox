@@ -266,6 +266,10 @@ func rebuildChatView(refs *UIRefs, state *AppState) {
 	friendID, ok := state.GetSelectedFriendID()
 	if !ok {
 		refs.chatHeader.SetText("Select a friend to chat")
+		// Clear stale messages from any previously selected chat.
+		emptyList := wain.NewColumn()
+		emptyList.SetGap(2)
+		*refs.messageList = *emptyList
 		return
 	}
 

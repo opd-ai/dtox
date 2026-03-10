@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	toxcore "github.com/opd-ai/toxcore"
@@ -230,10 +231,21 @@ func (b *ToxBackend) registerCallbacks() {
 }
 
 // syncFriendList refreshes the AppState friend list from the Tox instance.
+// Entries are sorted by friend ID for deterministic ordering, so that the
+// index-based selection (selectedFriend) remains stable across syncs.
 func (b *ToxBackend) syncFriendList() {
 	toxFriends := b.tox.GetFriends()
-	entries := make([]FriendEntry, 0, len(toxFriends))
-	for id, f := range toxFriends {
+
+	// Collect and sort keys for deterministic iteration order.
+	ids := make([]uint32, 0, len(toxFriends))
+	for id := range toxFriends {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+
+	entries := make([]FriendEntry, 0, len(ids))
+	for _, id := range ids {
+		f := toxFriends[id]
 		connType := "Offline"
 		online := false
 		switch f.ConnectionStatus {
@@ -249,12 +261,12 @@ func (b *ToxBackend) syncFriendList() {
 			name = FormatPublicKeyShort(f.PublicKey)
 		}
 		entries = append(entries, FriendEntry{
-			ID:             id,
-			Name:           name,
-			StatusMessage:  f.StatusMessage,
-			Online:         online,
-			ConnectionType: connType,
-			PublicKeyHex:   FormatPublicKeyShort(f.PublicKey),
+			ID:               id,
+			Name:             name,
+			StatusMessage:    f.StatusMessage,
+			Online:           online,
+			ConnectionType:   connType,
+			PublicKeyShortHex: FormatPublicKeyShort(f.PublicKey),
 		})
 	}
 	b.state.SetFriends(entries)
@@ -297,7 +309,7 @@ func friendNameOrID(state *AppState, friendID uint32) string {
 			if f.Name != "" {
 				return f.Name
 			}
-			return f.PublicKeyHex
+			return f.PublicKeyShortHex
 		}
 	}
 	return fmt.Sprintf("Friend#%d", friendID)

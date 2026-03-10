@@ -23,13 +23,13 @@ type AppState struct {
 
 // FriendEntry represents a friend in the contact list.
 type FriendEntry struct {
-	ID             uint32
-	Name           string
-	StatusMessage  string
-	Online         bool
-	ConnectionType string
-	PublicKeyHex   string
-	UnreadCount    int
+	ID               uint32
+	Name             string
+	StatusMessage    string
+	Online           bool
+	ConnectionType   string
+	PublicKeyShortHex string // First 16 hex chars of the public key, for display
+	UnreadCount      int
 }
 
 // ChatMessage represents a single message in a conversation.

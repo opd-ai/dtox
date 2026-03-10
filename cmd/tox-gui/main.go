@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/opd-ai/wain"
@@ -50,19 +51,26 @@ func main() {
 
 	win.SetRootWidget(adaptPublicWidget(root))
 
+	// 7. Graceful shutdown guarded by sync.Once so concurrent triggers
+	// (window close + SIGTERM) don't double-stop the backend.
+	var shutdownOnce sync.Once
+	shutdown := func() {
+		shutdownOnce.Do(func() {
+			log.Println("Shutting down...")
+			backend.Stop()
+			app.Quit()
+		})
+	}
+
 	win.OnClose(func() {
-		backend.Stop()
-		app.Quit()
+		shutdown()
 	})
 
-	// 7. Signal handling for graceful shutdown.
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		log.Println("Signal received, shutting down...")
-		backend.Stop()
-		app.Quit()
+		shutdown()
 	}()
 
 	// 8. Run the application event loop (blocks until Quit).
