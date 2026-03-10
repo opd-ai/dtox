@@ -3,9 +3,12 @@
 package anonymity
 
 import (
+	"bufio"
+	"fmt"
 	"log"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +18,8 @@ import (
 const (
 	// Default timeout for transport availability checks
 	defaultDialTimeout = 2 * time.Second
+	// Protocol handshake timeout
+	protocolTimeout = 1 * time.Second
 )
 
 // TransportStatus represents the availability status of an anonymity transport.
@@ -62,7 +67,9 @@ func (m *MultiTransportManager) Close() error {
 	m.closed = true
 
 	if m.mt != nil {
-		return m.mt.Close()
+		err := m.mt.Close()
+		m.mt = nil
+		return err
 	}
 	return nil
 }
@@ -72,7 +79,7 @@ func (m *MultiTransportManager) GetSupportedNetworks() []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if m.mt == nil {
+	if m.closed || m.mt == nil {
 		return nil
 	}
 	return m.mt.GetSupportedNetworks()
@@ -87,6 +94,9 @@ func (m *MultiTransportManager) Dial(address string) (net.Conn, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	if m.closed {
+		return nil, ErrTransportClosed
+	}
 	if m.mt == nil {
 		return nil, ErrTransportNotInitialized
 	}
@@ -99,6 +109,9 @@ func (m *MultiTransportManager) DialPacket(address string) (net.PacketConn, erro
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	if m.closed {
+		return nil, ErrTransportClosed
+	}
 	if m.mt == nil {
 		return nil, ErrTransportNotInitialized
 	}
@@ -110,13 +123,17 @@ func (m *MultiTransportManager) Listen(address string) (net.Listener, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	if m.closed {
+		return nil, ErrTransportClosed
+	}
 	if m.mt == nil {
 		return nil, ErrTransportNotInitialized
 	}
 	return m.mt.Listen(address)
 }
 
-// CheckTorAvailability checks if Tor transport is available.
+// CheckTorAvailability checks if Tor transport is available by connecting to the
+// Tor control port and verifying the Tor control protocol is responsive.
 // Returns a TransportStatus with availability information.
 func (m *MultiTransportManager) CheckTorAvailability() TransportStatus {
 	torAddr := os.Getenv("TOR_CONTROL_ADDR")
@@ -136,13 +153,39 @@ func (m *MultiTransportManager) CheckTorAvailability() TransportStatus {
 		status.Error = err
 		return status
 	}
-	conn.Close()
+	defer conn.Close()
+
+	// Verify Tor control protocol by sending PROTOCOLINFO command
+	conn.SetDeadline(time.Now().Add(protocolTimeout))
+	_, err = conn.Write([]byte("PROTOCOLINFO\r\n"))
+	if err != nil {
+		status.Available = false
+		status.Error = fmt.Errorf("failed to send PROTOCOLINFO: %w", err)
+		return status
+	}
+
+	// Read response - should start with "250-" for valid Tor control
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		status.Available = false
+		status.Error = fmt.Errorf("failed to read Tor response: %w", err)
+		return status
+	}
+
+	// Tor control protocol responses start with "250" for success
+	if !strings.HasPrefix(response, "250") {
+		status.Available = false
+		status.Error = fmt.Errorf("invalid Tor response: %s", strings.TrimSpace(response))
+		return status
+	}
 
 	status.Available = true
 	return status
 }
 
-// CheckI2PAvailability checks if I2P transport is available.
+// CheckI2PAvailability checks if I2P transport is available by connecting to the
+// SAM bridge and verifying the SAM protocol is responsive.
 // Returns a TransportStatus with availability information.
 func (m *MultiTransportManager) CheckI2PAvailability() TransportStatus {
 	i2pAddr := os.Getenv("I2P_SAM_ADDR")
@@ -162,7 +205,32 @@ func (m *MultiTransportManager) CheckI2PAvailability() TransportStatus {
 		status.Error = err
 		return status
 	}
-	conn.Close()
+	defer conn.Close()
+
+	// Verify SAM protocol by sending HELLO VERSION command
+	conn.SetDeadline(time.Now().Add(protocolTimeout))
+	_, err = conn.Write([]byte("HELLO VERSION MIN=3.0 MAX=3.3\n"))
+	if err != nil {
+		status.Available = false
+		status.Error = fmt.Errorf("failed to send SAM HELLO: %w", err)
+		return status
+	}
+
+	// Read response - should contain "HELLO REPLY RESULT=OK"
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		status.Available = false
+		status.Error = fmt.Errorf("failed to read SAM response: %w", err)
+		return status
+	}
+
+	// SAM protocol response should contain "HELLO REPLY RESULT=OK"
+	if !strings.Contains(response, "HELLO REPLY") || !strings.Contains(response, "RESULT=OK") {
+		status.Available = false
+		status.Error = fmt.Errorf("invalid SAM response: %s", strings.TrimSpace(response))
+		return status
+	}
 
 	status.Available = true
 	return status
@@ -224,17 +292,19 @@ func (m *MultiTransportManager) LogTransportStatus() {
 
 // Global singleton instance for convenient access
 var (
-	globalManager     *MultiTransportManager
-	globalManagerOnce sync.Once
-	globalManagerMu   sync.Mutex
+	globalManager   *MultiTransportManager
+	globalManagerMu sync.Mutex
 )
 
 // GetGlobalManager returns the global MultiTransportManager instance.
 // The manager is initialized lazily on first access.
 func GetGlobalManager() *MultiTransportManager {
-	globalManagerOnce.Do(func() {
+	globalManagerMu.Lock()
+	defer globalManagerMu.Unlock()
+
+	if globalManager == nil {
 		globalManager = NewMultiTransportManager()
-	})
+	}
 	return globalManager
 }
 
@@ -247,8 +317,6 @@ func CloseGlobalManager() error {
 	if globalManager != nil {
 		err := globalManager.Close()
 		globalManager = nil
-		// Reset the once so a new manager can be created if needed
-		globalManagerOnce = sync.Once{}
 		return err
 	}
 	return nil

@@ -2,7 +2,6 @@ package anonymity
 
 import (
 	"os"
-	"sync"
 	"testing"
 )
 
@@ -114,19 +113,21 @@ func TestCheckTorAvailability(t *testing.T) {
 		}
 	})
 
-	// Test with custom address
+	// Test with custom address - use localhost with a closed port for deterministic testing
 	t.Run("CustomAddress", func(t *testing.T) {
-		os.Setenv("TOR_CONTROL_ADDR", "192.168.1.10:9151")
+		// Use a localhost address with a port that is expected to be closed, so the
+		// check fails deterministically without requiring external network access.
+		t.Setenv("TOR_CONTROL_ADDR", "127.0.0.1:1")
 
 		status := manager.CheckTorAvailability()
 
-		if status.Address != "192.168.1.10:9151" {
-			t.Errorf("Expected custom Tor address '192.168.1.10:9151', got '%s'", status.Address)
+		if status.Address != "127.0.0.1:1" {
+			t.Errorf("Expected custom Tor address '127.0.0.1:1', got '%s'", status.Address)
 		}
 
-		// This should fail as the address is not reachable
+		// This should fail as the port is expected to be closed
 		if status.Available {
-			t.Error("Expected Tor to be unavailable with non-existent address")
+			t.Error("Expected Tor to be unavailable with closed local port")
 		}
 	})
 }
@@ -157,19 +158,21 @@ func TestCheckI2PAvailability(t *testing.T) {
 		}
 	})
 
-	// Test with custom address
+	// Test with custom address - use localhost with a closed port for deterministic testing
 	t.Run("CustomAddress", func(t *testing.T) {
-		os.Setenv("I2P_SAM_ADDR", "192.168.1.20:7756")
+		// Use a localhost address with a port that is expected to be closed, so the
+		// check fails deterministically without requiring external network access.
+		t.Setenv("I2P_SAM_ADDR", "127.0.0.1:1")
 
 		status := manager.CheckI2PAvailability()
 
-		if status.Address != "192.168.1.20:7756" {
-			t.Errorf("Expected custom I2P address '192.168.1.20:7756', got '%s'", status.Address)
+		if status.Address != "127.0.0.1:1" {
+			t.Errorf("Expected custom I2P address '127.0.0.1:1', got '%s'", status.Address)
 		}
 
-		// This should fail as the address is not reachable
+		// This should fail as the port is expected to be closed
 		if status.Available {
-			t.Error("Expected I2P to be unavailable with non-existent address")
+			t.Error("Expected I2P to be unavailable with closed local port")
 		}
 	})
 }
@@ -201,10 +204,7 @@ func TestGlobalManager(t *testing.T) {
 	defer cleanup()
 
 	// Reset global manager state
-	globalManagerMu.Lock()
-	globalManager = nil
-	globalManagerOnce = sync.Once{}
-	globalManagerMu.Unlock()
+	CloseGlobalManager()
 
 	// Get global manager
 	manager1 := GetGlobalManager()
@@ -264,6 +264,43 @@ func TestTransportNotInitializedError(t *testing.T) {
 	networks := manager.GetSupportedNetworks()
 	if networks != nil {
 		t.Errorf("Expected nil networks, got %v", networks)
+	}
+}
+
+func TestTransportClosedError(t *testing.T) {
+	cleanup := saveAndClearEnvVars()
+	defer cleanup()
+
+	manager := NewMultiTransportManager()
+
+	// Close the manager
+	err := manager.Close()
+	if err != nil {
+		t.Fatalf("Close() failed: %v", err)
+	}
+
+	// Dial should return ErrTransportClosed after close
+	_, err = manager.Dial("127.0.0.1:8080")
+	if err != ErrTransportClosed {
+		t.Errorf("Expected ErrTransportClosed after close, got %v", err)
+	}
+
+	// DialPacket should return ErrTransportClosed after close
+	_, err = manager.DialPacket("127.0.0.1:8080")
+	if err != ErrTransportClosed {
+		t.Errorf("Expected ErrTransportClosed after close, got %v", err)
+	}
+
+	// Listen should return ErrTransportClosed after close
+	_, err = manager.Listen("127.0.0.1:8080")
+	if err != ErrTransportClosed {
+		t.Errorf("Expected ErrTransportClosed after close, got %v", err)
+	}
+
+	// GetSupportedNetworks should return nil after close
+	networks := manager.GetSupportedNetworks()
+	if networks != nil {
+		t.Errorf("Expected nil networks after close, got %v", networks)
 	}
 }
 

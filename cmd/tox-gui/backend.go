@@ -29,8 +29,9 @@ func NewToxBackend(state *AppState, app *wain.App, uiRefs *UIRefs) (*ToxBackend,
 	// This automatically registers IP, Tor, I2P, and Nym transports
 	transportManager := anonymity.NewMultiTransportManager()
 
-	// Log anonymity network availability with actual status checks
-	transportManager.LogTransportStatus()
+	// Log anonymity network availability with actual status checks asynchronously
+	// to avoid blocking startup on network timeouts
+	go transportManager.LogTransportStatus()
 
 	options := toxcore.NewOptions()
 	options.UDPEnabled = true
