@@ -2,11 +2,6 @@
 // in dtox, including Tor and I2P configuration and logging.
 package anonymity
 
-import (
-	"log"
-	"os"
-)
-
 const (
 	// Log formatting constants
 	logSeparator = "================================"

@@ -50,6 +50,52 @@ func GetI2PSAMAddr() string {
 	return addr
 }
 
+// GetTorSOCKSAddr returns the configured Tor SOCKS proxy address.
+// This is the SOCKS5 proxy that Tor exposes for application use.
+// Default is 127.0.0.1:9050 (standard Tor SOCKS port).
+func GetTorSOCKSAddr() string {
+	addr := os.Getenv("TOR_SOCKS_ADDR")
+	if addr == "" {
+		return "127.0.0.1:9050"
+	}
+	return addr
+}
+
+// ParseHostPort splits a host:port string into separate components.
+// If parsing fails, returns the original string as host and the default port.
+func ParseHostPort(addr string, defaultPort uint16) (string, uint16) {
+	// Find the last colon (handles IPv6 addresses in brackets)
+	lastColon := -1
+	for i := len(addr) - 1; i >= 0; i-- {
+		if addr[i] == ':' {
+			lastColon = i
+			break
+		}
+	}
+
+	if lastColon == -1 {
+		return addr, defaultPort
+	}
+
+	host := addr[:lastColon]
+	portStr := addr[lastColon+1:]
+
+	// Parse port
+	var port uint64
+	for _, c := range portStr {
+		if c < '0' || c > '9' {
+			return addr, defaultPort
+		}
+		port = port*10 + uint64(c-'0')
+	}
+
+	if port > 65535 || port == 0 {
+		return addr, defaultPort
+	}
+
+	return host, uint16(port)
+}
+
 // LogNetworkStatusWithMode logs the configuration of anonymity networks,
 // including whether anon-only mode is enabled.
 func LogNetworkStatusWithMode() {

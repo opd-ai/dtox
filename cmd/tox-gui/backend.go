@@ -27,7 +27,26 @@ func NewToxBackend(state *AppState, app *wain.App, uiRefs *UIRefs) (*ToxBackend,
 	anonymity.LogNetworkStatus()
 
 	options := toxcore.NewOptions()
-	options.UDPEnabled = true
+
+	// Configure based on anon-only mode
+	if anonymity.IsAnonOnly() {
+		// In anon-only mode, disable UDP to force TCP through Tor SOCKS proxy
+		options.UDPEnabled = false
+		log.Println("Anon-only mode: UDP disabled, configuring Tor SOCKS5 proxy")
+
+		// Get Tor SOCKS proxy address (default: 127.0.0.1:9050)
+		torSOCKSAddr := anonymity.GetTorSOCKSAddr()
+		host, port := anonymity.ParseHostPort(torSOCKSAddr, 9050)
+
+		options.Proxy = &toxcore.ProxyOptions{
+			Type: toxcore.ProxyTypeSOCKS5,
+			Host: host,
+			Port: port,
+		}
+		log.Printf("Anon-only mode: Using Tor SOCKS5 proxy at %s:%d", host, port)
+	} else {
+		options.UDPEnabled = true
+	}
 
 	tox, err := toxcore.New(options)
 	if err != nil {
