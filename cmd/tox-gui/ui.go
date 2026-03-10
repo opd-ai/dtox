@@ -193,13 +193,14 @@ func WireAddFriendButton(btn *wain.Button, refs *UIRefs, backend *ToxBackend) {
 }
 
 // rebuildFriendList clears and re-populates the friend list column.
+// We rebuild by copying the new column's fields into the existing column at
+// the same memory address. This preserves pointer identity: the ScrollView's
+// internal adapter still references this *Column, so it sees the updated state.
 func rebuildFriendList(refs *UIRefs, state *AppState, backend *ToxBackend) {
 	if refs.friendList == nil {
 		return
 	}
 
-	// Clear existing children by replacing the column content.
-	// Since wain Column doesn't have a RemoveAll, we rebuild in-place.
 	newList := wain.NewColumn()
 	newList.SetGap(2)
 
@@ -248,12 +249,15 @@ func rebuildFriendList(refs *UIRefs, state *AppState, backend *ToxBackend) {
 		newList.Add(btn)
 	}
 
-	// Replace the content in the scroll view parent
-	// We update the reference so future rebuilds use the new column
+	// Copy the new column's internal state into the existing column.
+	// The ScrollView parent still holds a pointer to refs.friendList,
+	// so the in-place update ensures the parent sees the new children.
 	*refs.friendList = *newList
 }
 
 // rebuildChatView clears and re-populates the message list column.
+// Uses the same in-place copy approach as rebuildFriendList to preserve
+// the parent ScrollView's reference to the *Column pointer.
 func rebuildChatView(refs *UIRefs, state *AppState) {
 	if refs.messageList == nil {
 		return
@@ -306,11 +310,14 @@ func rebuildChatView(refs *UIRefs, state *AppState) {
 		newList.Add(lbl)
 	}
 
+	// Copy the new column's internal state into the existing column.
 	*refs.messageList = *newList
 }
 
 // publicWidgetAdapter bridges a wain.PublicWidget to the internal wain.Widget
 // interface, allowing public widgets to be used with Window.SetRootWidget().
+// It embeds BaseWidget for default implementations and delegates event handling
+// to the wrapped PublicWidget.
 type publicWidgetAdapter struct {
 	wain.BaseWidget
 	public wain.PublicWidget
@@ -319,4 +326,25 @@ type publicWidgetAdapter struct {
 // adaptPublicWidget wraps a PublicWidget so it satisfies the Widget interface.
 func adaptPublicWidget(pw wain.PublicWidget) wain.Widget {
 	return &publicWidgetAdapter{public: pw}
+}
+
+// Contains returns true if the point is within the widget's bounds.
+func (a *publicWidgetAdapter) Contains(x, y float64) bool {
+	w, h := a.public.Bounds()
+	return x >= 0 && x < float64(w) && y >= 0 && y < float64(h)
+}
+
+// HandlePointer delegates pointer events to the wrapped PublicWidget.
+func (a *publicWidgetAdapter) HandlePointer(evt *wain.PointerEvent) {
+	a.public.HandleEvent(evt)
+}
+
+// HandleKey delegates keyboard events to the wrapped PublicWidget.
+func (a *publicWidgetAdapter) HandleKey(evt *wain.KeyEvent) {
+	a.public.HandleEvent(evt)
+}
+
+// HandleTouch delegates touch events to the wrapped PublicWidget.
+func (a *publicWidgetAdapter) HandleTouch(evt *wain.TouchEvent) {
+	a.public.HandleEvent(evt)
 }
