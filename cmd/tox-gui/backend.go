@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/opd-ai/dtox/internal/anonymity"
 	toxcore "github.com/opd-ai/toxcore"
 	"github.com/opd-ai/wain"
 )
@@ -22,6 +23,9 @@ type ToxBackend struct {
 // NewToxBackend creates a new backend, initializes the Tox instance,
 // and registers all callbacks.
 func NewToxBackend(state *AppState, app *wain.App, uiRefs *UIRefs) (*ToxBackend, error) {
+	// Log anonymity network availability
+	anonymity.LogNetworkStatus()
+
 	options := toxcore.NewOptions()
 	options.UDPEnabled = true
 
