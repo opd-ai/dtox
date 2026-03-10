@@ -7,11 +7,17 @@ import (
 	"os"
 )
 
+const (
+	// Log formatting constants
+	logSeparator = "================================"
+	logHeader    = "=== Anonymity Network Support ==="
+)
+
 // LogNetworkStatus logs the configuration of anonymity networks (Tor and I2P).
 // This helps users understand which privacy networks are configured.
 // Note: This shows configuration only - the actual services must be running separately.
 func LogNetworkStatus() {
-	log.Println("=== Anonymity Network Support ===")
+	log.Println(logHeader)
 	
 	// Check Tor configuration
 	torAddr := os.Getenv("TOR_CONTROL_ADDR")
@@ -32,5 +38,5 @@ func LogNetworkStatus() {
 	log.Println("  - Requires I2P router with SAM bridge enabled")
 	
 	log.Println("Note: Start Tor/I2P services before connecting to anonymity addresses")
-	log.Println("================================")
+	log.Println(logSeparator)
 }

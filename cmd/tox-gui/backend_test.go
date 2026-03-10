@@ -10,6 +10,29 @@ import (
 	"github.com/opd-ai/dtox/internal/anonymity"
 )
 
+// saveAndClearEnvVars saves the current values of Tor and I2P environment variables
+// and clears them for testing. Returns a cleanup function that restores the original values.
+func saveAndClearEnvVars() func() {
+	origTor := os.Getenv("TOR_CONTROL_ADDR")
+	origI2P := os.Getenv("I2P_SAM_ADDR")
+	
+	os.Unsetenv("TOR_CONTROL_ADDR")
+	os.Unsetenv("I2P_SAM_ADDR")
+	
+	return func() {
+		if origTor != "" {
+			os.Setenv("TOR_CONTROL_ADDR", origTor)
+		} else {
+			os.Unsetenv("TOR_CONTROL_ADDR")
+		}
+		if origI2P != "" {
+			os.Setenv("I2P_SAM_ADDR", origI2P)
+		} else {
+			os.Unsetenv("I2P_SAM_ADDR")
+		}
+	}
+}
+
 // TestLogAnonymityNetworkStatus verifies that the anonymity network logging
 // function correctly displays Tor and I2P configuration.
 func TestLogAnonymityNetworkStatus(t *testing.T) {
@@ -21,26 +44,8 @@ func TestLogAnonymityNetworkStatus(t *testing.T) {
 	// Test with default values (no environment variables set)
 	t.Run("DefaultConfiguration", func(t *testing.T) {
 		buf.Reset()
-		
-		// Save original env vars
-		origTor := os.Getenv("TOR_CONTROL_ADDR")
-		origI2P := os.Getenv("I2P_SAM_ADDR")
-		defer func() {
-			if origTor != "" {
-				os.Setenv("TOR_CONTROL_ADDR", origTor)
-			} else {
-				os.Unsetenv("TOR_CONTROL_ADDR")
-			}
-			if origI2P != "" {
-				os.Setenv("I2P_SAM_ADDR", origI2P)
-			} else {
-				os.Unsetenv("I2P_SAM_ADDR")
-			}
-		}()
-		
-		// Clear env vars for test
-		os.Unsetenv("TOR_CONTROL_ADDR")
-		os.Unsetenv("I2P_SAM_ADDR")
+		cleanup := saveAndClearEnvVars()
+		defer cleanup()
 		
 		anonymity.LogNetworkStatus()
 		
@@ -79,22 +84,8 @@ func TestLogAnonymityNetworkStatus(t *testing.T) {
 	// Test with custom environment variables
 	t.Run("CustomConfiguration", func(t *testing.T) {
 		buf.Reset()
-		
-		// Save original env vars
-		origTor := os.Getenv("TOR_CONTROL_ADDR")
-		origI2P := os.Getenv("I2P_SAM_ADDR")
-		defer func() {
-			if origTor != "" {
-				os.Setenv("TOR_CONTROL_ADDR", origTor)
-			} else {
-				os.Unsetenv("TOR_CONTROL_ADDR")
-			}
-			if origI2P != "" {
-				os.Setenv("I2P_SAM_ADDR", origI2P)
-			} else {
-				os.Unsetenv("I2P_SAM_ADDR")
-			}
-		}()
+		cleanup := saveAndClearEnvVars()
+		defer cleanup()
 		
 		// Set custom environment variables
 		os.Setenv("TOR_CONTROL_ADDR", "192.168.1.10:9151")
