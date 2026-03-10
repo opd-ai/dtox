@@ -8,6 +8,10 @@
 *.so
 *.dylib
 
+# Build output binaries
+tox-gui
+*.o
+
 # Test binary, built with `go test -c`
 *.test
 
