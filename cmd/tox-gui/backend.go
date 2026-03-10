@@ -13,24 +13,32 @@ import (
 
 // ToxBackend owns the Tox instance and bridges events to the UI.
 type ToxBackend struct {
-	tox    *toxcore.Tox
-	state  *AppState
-	app    *wain.App
-	uiRefs *UIRefs
-	done   chan struct{}
+	tox              *toxcore.Tox
+	state            *AppState
+	app              *wain.App
+	uiRefs           *UIRefs
+	done             chan struct{}
+	transportManager *anonymity.MultiTransportManager
 }
 
 // NewToxBackend creates a new backend, initializes the Tox instance,
-// and registers all callbacks.
+// and registers all callbacks. It also initializes the multi-transport
+// system for Tor and I2P support when those services are available.
 func NewToxBackend(state *AppState, app *wain.App, uiRefs *UIRefs) (*ToxBackend, error) {
-	// Log anonymity network availability
-	anonymity.LogNetworkStatus()
+	// Initialize multi-transport manager for anonymity network support
+	// This automatically registers IP, Tor, I2P, and Nym transports
+	transportManager := anonymity.NewMultiTransportManager()
+
+	// Log anonymity network availability with actual status checks asynchronously
+	// to avoid blocking startup on network timeouts
+	go transportManager.LogTransportStatus()
 
 	options := toxcore.NewOptions()
 	options.UDPEnabled = true
 
 	tox, err := toxcore.New(options)
 	if err != nil {
+		transportManager.Close()
 		return nil, fmt.Errorf("toxcore.New: %w", err)
 	}
 
@@ -44,11 +52,12 @@ func NewToxBackend(state *AppState, app *wain.App, uiRefs *UIRefs) (*ToxBackend,
 	state.SetSelfAddress(tox.SelfGetAddress())
 
 	b := &ToxBackend{
-		tox:    tox,
-		state:  state,
-		app:    app,
-		uiRefs: uiRefs,
-		done:   make(chan struct{}),
+		tox:              tox,
+		state:            state,
+		app:              app,
+		uiRefs:           uiRefs,
+		done:             make(chan struct{}),
+		transportManager: transportManager,
 	}
 
 	b.registerCallbacks()
@@ -73,7 +82,7 @@ func (b *ToxBackend) Start() {
 	}()
 }
 
-// Stop shuts down the Tox instance and stops the event loop.
+// Stop shuts down the Tox instance, transport manager, and stops the event loop.
 func (b *ToxBackend) Stop() {
 	select {
 	case <-b.done:
@@ -82,6 +91,27 @@ func (b *ToxBackend) Stop() {
 		close(b.done)
 	}
 	b.tox.Kill()
+
+	// Close the transport manager to release anonymity network resources
+	if b.transportManager != nil {
+		if err := b.transportManager.Close(); err != nil {
+			log.Printf("Error closing transport manager: %v", err)
+		}
+	}
+}
+
+// GetTransportManager returns the multi-transport manager for accessing
+// anonymity network transports (Tor, I2P, etc.).
+func (b *ToxBackend) GetTransportManager() *anonymity.MultiTransportManager {
+	return b.transportManager
+}
+
+// GetTransportStatuses returns the availability status of all anonymity transports.
+func (b *ToxBackend) GetTransportStatuses() map[string]anonymity.TransportStatus {
+	if b.transportManager == nil {
+		return nil
+	}
+	return b.transportManager.GetTransportStatuses()
 }
 
 // SendMessage sends a text message to the given friend.
