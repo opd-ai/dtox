@@ -37,6 +37,13 @@ func LogNetworkStatus() {
 	log.Println("  - .i2p addresses will route through I2P")
 	log.Println("  - Requires I2P router with SAM bridge enabled")
 	
+	log.Println()
+	log.Println("Transport routing (automatic based on address):")
+	log.Println("  - Regular IP addresses -> Direct UDP/TCP")
+	log.Println("  - .onion addresses -> Tor network")
+	log.Println("  - .i2p addresses -> I2P network")
+	
+	log.Println()
 	log.Println("Note: Start Tor/I2P services before connecting to anonymity addresses")
 	log.Println(logSeparator)
 }
