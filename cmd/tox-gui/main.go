@@ -1,16 +1,27 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
+	"github.com/opd-ai/dtox/internal/anonymity"
 	"github.com/opd-ai/wain"
 )
 
 func main() {
+	// Parse command-line flags
+	anonOnly := flag.Bool("anon-only", false, "Enable anonymous-only mode (no clearnet connections, bootstrap via Tor)")
+	flag.Parse()
+
+	// Set anon-only mode before any network activity
+	if *anonOnly {
+		anonymity.SetAnonOnly(true)
+	}
+
 	log.SetFlags(log.Ltime | log.Lshortfile)
 	log.Println("Starting Tox Messenger GUI...")
 
