@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/opd-ai/dtox/internal/anonymity"
 )
 
 // TestLogAnonymityNetworkStatus verifies that the anonymity network logging
@@ -24,7 +26,7 @@ func TestLogAnonymityNetworkStatus(t *testing.T) {
 		os.Unsetenv("TOR_CONTROL_ADDR")
 		os.Unsetenv("I2P_SAM_ADDR")
 		
-		logAnonymityNetworkStatus()
+		anonymity.LogNetworkStatus()
 		
 		output := buf.String()
 		
@@ -70,7 +72,7 @@ func TestLogAnonymityNetworkStatus(t *testing.T) {
 			os.Unsetenv("I2P_SAM_ADDR")
 		}()
 		
-		logAnonymityNetworkStatus()
+		anonymity.LogNetworkStatus()
 		
 		output := buf.String()
 		
