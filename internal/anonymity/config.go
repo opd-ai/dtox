@@ -80,6 +80,11 @@ func ParseHostPort(addr string, defaultPort uint16) (string, uint16) {
 	host := addr[:lastColon]
 	portStr := addr[lastColon+1:]
 
+	// Handle empty port string (trailing colon with no port)
+	if portStr == "" {
+		return host, defaultPort
+	}
+
 	// Parse port
 	var port uint64
 	for _, c := range portStr {

@@ -145,6 +145,7 @@ func TestParseHostPort(t *testing.T) {
 		{"HostnameNoPort", "localhost", 9050, "localhost", 9050},
 		{"EmptyString", "", 9050, "", 9050},
 		{"PortOnly", ":9050", 8080, "", 9050},
+		{"TrailingColon", "localhost:", 9050, "localhost", 9050},
 		{"InvalidPort", "localhost:abc", 9050, "localhost:abc", 9050},
 		{"PortTooLarge", "localhost:99999", 9050, "localhost:99999", 9050},
 		{"PortZero", "localhost:0", 9050, "localhost:0", 9050},
