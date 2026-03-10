@@ -52,7 +52,7 @@ rust: $(RUST_LIB)
 
 $(RUST_LIB):
 	@mkdir -p $(BUILD_DIR)
-	@if [ ! -d "$(RUST_SRC)" ]; then cp -r "$(WAIN_DIR)/render-sys" "$(RUST_SRC)"; fi
+	@if [ ! -d "$(RUST_SRC)" ]; then cp -r "$(WAIN_DIR)/render-sys" "$(RUST_SRC)" && chmod -R u+w "$(RUST_SRC)"; fi
 	CARGO_TARGET_DIR=$(BUILD_DIR)/target cargo build \
 	  --release \
 	  --target $(RUST_MUSL_TARGET) \
@@ -66,4 +66,4 @@ $(DL_STUB_OBJ):
 
 clean:
 	rm -f $(OUTPUT)
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) 2>/dev/null || chmod -R u+w $(BUILD_DIR) 2>/dev/null && rm -rf $(BUILD_DIR) 2>/dev/null; true
