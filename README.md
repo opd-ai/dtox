@@ -5,16 +5,30 @@ tox client using wain
 
 - Tox messaging protocol support
 - Modern GUI using wain
-- **Multiple anonymity network support (Tor and I2P)**
+- **Multiple anonymity network support (Tor and I2P) - enabled by default**
 - Secure peer-to-peer communication
+- Automatic transport selection based on address format
 
 ## Anonymity Network Support
 
-dtox supports multiple anonymity networks through the opd-ai/toxcore library:
+dtox supports multiple anonymity networks through the `opd-ai/toxcore` library's multi-transport system. **Tor and I2P support is enabled by default** - when the services are running on your system, dtox will automatically use them for `.onion` and `.i2p` addresses.
+
+### How It Works
+
+The application initializes a multi-transport manager at startup that:
+1. Registers IP, Tor, I2P, and Nym transports automatically
+2. Checks for service availability and logs status
+3. Routes connections through the appropriate network based on address format
+
+### Startup Status
+
+When you start dtox, it will display the availability status of each anonymity network:
+- **AVAILABLE**: The service is running and dtox can use it
+- **NOT AVAILABLE**: The service is not running (you can still use dtox with regular IP addresses)
 
 ### Tor Support
 
-Tor support is built-in and automatically active. The Tox client can:
+Tor support is built-in and automatically active when Tor is running. The Tox client can:
 - Connect to bootstrap nodes via Tor
 - Accept friend requests from .onion addresses
 - Route traffic through the Tor network for enhanced privacy
@@ -28,7 +42,10 @@ Tor support is built-in and automatically active. The Tox client can:
 # Start Tor service
 tor &
 
-# Run dtox with Tor support
+# Run dtox with Tor support (no extra configuration needed if using defaults)
+./tox-gui
+
+# Or with custom Tor control address
 TOR_CONTROL_ADDR=127.0.0.1:9051 ./tox-gui
 ```
 
@@ -47,7 +64,10 @@ I2P (Invisible Internet Project) support is also built-in. The client can:
 ```bash
 # Ensure I2P router is running with SAM bridge on port 7656
 
-# Run dtox with I2P support
+# Run dtox with I2P support (no extra configuration needed if using defaults)
+./tox-gui
+
+# Or with custom I2P SAM address
 I2P_SAM_ADDR=127.0.0.1:7656 ./tox-gui
 ```
 
@@ -60,15 +80,30 @@ You can enable both Tor and I2P at the same time for maximum privacy and connect
 tor &
 # (I2P router should be running)
 
-# Run dtox with both networks
+# Run dtox with both networks (automatic detection)
+./tox-gui
+
+# Or with explicit configuration
 TOR_CONTROL_ADDR=127.0.0.1:9051 I2P_SAM_ADDR=127.0.0.1:7656 ./tox-gui
 ```
 
-**Note:** When connecting to peers:
-- Regular IP addresses will use direct UDP/TCP connections
-- `.onion` addresses will automatically route through Tor
-- `.i2p` addresses will automatically route through I2P
-- The transport selection is automatic based on the address format
+### Automatic Transport Routing
+
+When connecting to peers, dtox automatically selects the appropriate transport:
+- **Regular IP addresses** → Direct UDP/TCP connections
+- **`.onion` addresses** → Tor network
+- **`.i2p` addresses** → I2P network
+- **`.nym` addresses** → Nym mixnet (if available)
+
+The transport selection is completely automatic based on the address format - no manual configuration required.
+
+### Supported Networks
+
+The multi-transport system supports the following network types:
+- **IP**: tcp, udp, tcp4, tcp6, udp4, udp6
+- **Tor**: .onion hidden services
+- **I2P**: .i2p destinations via SAM bridge
+- **Nym**: .nym mixnet addresses (experimental)
 
 ## Building
 

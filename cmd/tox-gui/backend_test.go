@@ -105,3 +105,4 @@ func TestLogAnonymityNetworkStatus(t *testing.T) {
 		}
 	})
 }
+
