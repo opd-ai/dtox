@@ -7,8 +7,9 @@ import (
 	"os"
 )
 
-// LogNetworkStatus logs the availability of anonymity networks (Tor and I2P).
-// This helps users understand which privacy networks are configured and available.
+// LogNetworkStatus logs the configuration of anonymity networks (Tor and I2P).
+// This helps users understand which privacy networks are configured.
+// Note: This shows configuration only - the actual services must be running separately.
 func LogNetworkStatus() {
 	log.Println("=== Anonymity Network Support ===")
 	
@@ -17,21 +18,19 @@ func LogNetworkStatus() {
 	if torAddr == "" {
 		torAddr = "127.0.0.1:9051" // default
 	}
-	log.Printf("Tor support: ENABLED (control: %s)", torAddr)
-	log.Println("  - Connect to bootstrap nodes via Tor")
-	log.Println("  - Accept friend requests from .onion addresses")
-	log.Println("  - Automatic routing for .onion addresses")
+	log.Printf("Tor: CONFIGURED (control: %s)", torAddr)
+	log.Println("  - .onion addresses will route through Tor")
+	log.Println("  - Requires Tor service running on control port")
 	
 	// Check I2P configuration
 	i2pAddr := os.Getenv("I2P_SAM_ADDR")
 	if i2pAddr == "" {
 		i2pAddr = "127.0.0.1:7656" // default
 	}
-	log.Printf("I2P support: ENABLED (SAM bridge: %s)", i2pAddr)
-	log.Println("  - Connect to I2P peers via .i2p addresses")
-	log.Println("  - Use SAM bridge protocol for I2P connectivity")
-	log.Println("  - Automatic routing for .i2p addresses")
+	log.Printf("I2P: CONFIGURED (SAM bridge: %s)", i2pAddr)
+	log.Println("  - .i2p addresses will route through I2P")
+	log.Println("  - Requires I2P router with SAM bridge enabled")
 	
-	log.Println("Note: Ensure Tor/I2P services are running for anonymity network features")
+	log.Println("Note: Start Tor/I2P services before connecting to anonymity addresses")
 	log.Println("================================")
 }

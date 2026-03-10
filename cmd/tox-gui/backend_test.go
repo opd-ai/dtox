@@ -22,7 +22,23 @@ func TestLogAnonymityNetworkStatus(t *testing.T) {
 	t.Run("DefaultConfiguration", func(t *testing.T) {
 		buf.Reset()
 		
-		// Clear any existing env vars
+		// Save original env vars
+		origTor := os.Getenv("TOR_CONTROL_ADDR")
+		origI2P := os.Getenv("I2P_SAM_ADDR")
+		defer func() {
+			if origTor != "" {
+				os.Setenv("TOR_CONTROL_ADDR", origTor)
+			} else {
+				os.Unsetenv("TOR_CONTROL_ADDR")
+			}
+			if origI2P != "" {
+				os.Setenv("I2P_SAM_ADDR", origI2P)
+			} else {
+				os.Unsetenv("I2P_SAM_ADDR")
+			}
+		}()
+		
+		// Clear env vars for test
 		os.Unsetenv("TOR_CONTROL_ADDR")
 		os.Unsetenv("I2P_SAM_ADDR")
 		
@@ -35,16 +51,16 @@ func TestLogAnonymityNetworkStatus(t *testing.T) {
 			t.Error("Expected 'Anonymity Network Support' in output")
 		}
 		
-		if !strings.Contains(output, "Tor support: ENABLED") {
-			t.Error("Expected 'Tor support: ENABLED' in output")
+		if !strings.Contains(output, "Tor: CONFIGURED") {
+			t.Error("Expected 'Tor: CONFIGURED' in output")
 		}
 		
 		if !strings.Contains(output, "127.0.0.1:9051") {
 			t.Error("Expected default Tor control address '127.0.0.1:9051' in output")
 		}
 		
-		if !strings.Contains(output, "I2P support: ENABLED") {
-			t.Error("Expected 'I2P support: ENABLED' in output")
+		if !strings.Contains(output, "I2P: CONFIGURED") {
+			t.Error("Expected 'I2P: CONFIGURED' in output")
 		}
 		
 		if !strings.Contains(output, "127.0.0.1:7656") {
@@ -64,13 +80,25 @@ func TestLogAnonymityNetworkStatus(t *testing.T) {
 	t.Run("CustomConfiguration", func(t *testing.T) {
 		buf.Reset()
 		
+		// Save original env vars
+		origTor := os.Getenv("TOR_CONTROL_ADDR")
+		origI2P := os.Getenv("I2P_SAM_ADDR")
+		defer func() {
+			if origTor != "" {
+				os.Setenv("TOR_CONTROL_ADDR", origTor)
+			} else {
+				os.Unsetenv("TOR_CONTROL_ADDR")
+			}
+			if origI2P != "" {
+				os.Setenv("I2P_SAM_ADDR", origI2P)
+			} else {
+				os.Unsetenv("I2P_SAM_ADDR")
+			}
+		}()
+		
 		// Set custom environment variables
 		os.Setenv("TOR_CONTROL_ADDR", "192.168.1.10:9151")
 		os.Setenv("I2P_SAM_ADDR", "192.168.1.20:7756")
-		defer func() {
-			os.Unsetenv("TOR_CONTROL_ADDR")
-			os.Unsetenv("I2P_SAM_ADDR")
-		}()
 		
 		anonymity.LogNetworkStatus()
 		
