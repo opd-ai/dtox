@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/opd-ai/dtox/internal/anonymity"
+	"github.com/opd-ai/dtox/internal/ui"
 	toxcore "github.com/opd-ai/toxcore"
-	"github.com/opd-ai/wain"
 )
 
 // ToxBackend owns the Tox instance and bridges events to the UI.
 type ToxBackend struct {
 	tox              *toxcore.Tox
 	state            *AppState
-	app              *wain.App
+	app              *ui.App
 	uiRefs           *UIRefs
 	done             chan struct{}
 	transportManager *anonymity.MultiTransportManager
@@ -24,7 +24,7 @@ type ToxBackend struct {
 // NewToxBackend creates a new backend, initializes the Tox instance,
 // and registers all callbacks. It also initializes the multi-transport
 // system for Tor and I2P support when those services are available.
-func NewToxBackend(state *AppState, app *wain.App, uiRefs *UIRefs) (*ToxBackend, error) {
+func NewToxBackend(state *AppState, app *ui.App, uiRefs *UIRefs) (*ToxBackend, error) {
 	// Initialize multi-transport manager for anonymity network support
 	// This automatically registers IP, Tor, I2P, and Nym transports
 	transportManager := anonymity.NewMultiTransportManager()

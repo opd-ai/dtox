@@ -4,87 +4,87 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/opd-ai/wain"
+	"github.com/opd-ai/dtox/internal/ui"
 )
 
 // UIRefs holds references to widgets that need dynamic updates.
 type UIRefs struct {
-	statusLabel    *wain.Label
-	friendList     *wain.Column
-	chatHeader     *wain.Label
-	messageList    *wain.Column
-	messageInput   *wain.TextInput
-	toxIdDisplay   *wain.TextInput
-	addFriendInput *wain.TextInput
+	statusLabel    *ui.Label
+	friendList     *ui.Column
+	chatHeader     *ui.Label
+	messageList    *ui.Column
+	messageInput   *ui.TextInput
+	toxIdDisplay   *ui.TextInput
+	addFriendInput *ui.TextInput
 }
 
 // BuildUIWithActions constructs the complete widget tree, wires all button
 // actions to the backend, and returns the root widget and UI references.
-func BuildUIWithActions(state *AppState, backend *ToxBackend, app *wain.App) (*wain.Column, *UIRefs) {
+func BuildUIWithActions(state *AppState, backend *ToxBackend, app *ui.App) (*ui.Column, *UIRefs) {
 	refs := &UIRefs{}
 
 	// ─── Header row ───
-	header := wain.NewRow()
+	header := ui.NewRow()
 	header.SetPadding(6)
 	header.SetGap(8)
 	applyHeaderStyle(header.Panel)
 
-	titleLabel := wain.NewLabel("Tox Messenger", wain.Size{Width: 50, Height: 100})
-	titleLabel.SetStyle(wain.StyleOverride{
+	titleLabel := ui.NewLabel("Tox Messenger", ui.Size{Width: 50, Height: 100})
+	titleLabel.SetStyle(ui.StyleOverride{
 		Foreground: colorPtr(toxGreenLight),
 	})
 	header.Add(titleLabel)
 
-	refs.statusLabel = wain.NewLabel("Disconnected", wain.Size{Width: 50, Height: 100})
-	refs.statusLabel.SetStyle(wain.StyleOverride{
+	refs.statusLabel = ui.NewLabel("Disconnected", ui.Size{Width: 50, Height: 100})
+	refs.statusLabel.SetStyle(ui.StyleOverride{
 		Foreground: colorPtr(dimWhite),
 	})
 	header.Add(refs.statusLabel)
 
 	// ─── Sidebar ───
-	sidebar := wain.NewColumn()
+	sidebar := ui.NewColumn()
 	sidebar.SetPadding(4)
 	sidebar.SetGap(2)
 	applySidebarStyle(sidebar.Panel)
 
-	sidebarTitle := wain.NewLabel("Friends", wain.Size{Width: 100, Height: 8})
-	sidebarTitle.SetStyle(wain.StyleOverride{
+	sidebarTitle := ui.NewLabel("Friends", ui.Size{Width: 100, Height: 8})
+	sidebarTitle.SetStyle(ui.StyleOverride{
 		Foreground: colorPtr(toxGreen),
 	})
 	sidebar.Add(sidebarTitle)
 
-	friendScroll := wain.NewScrollView(wain.Size{Width: 100, Height: 92})
-	refs.friendList = wain.NewColumn()
+	friendScroll := ui.NewScrollView(ui.Size{Width: 100, Height: 92})
+	refs.friendList = ui.NewColumn()
 	refs.friendList.SetGap(2)
 	friendScroll.Add(refs.friendList)
 	sidebar.Add(friendScroll)
 
 	// ─── Chat area ───
-	chatArea := wain.NewColumn()
+	chatArea := ui.NewColumn()
 	chatArea.SetGap(0)
 	applyChatAreaStyle(chatArea.Panel)
 
-	refs.chatHeader = wain.NewLabel("Select a friend to chat", wain.Size{Width: 100, Height: 6})
-	refs.chatHeader.SetStyle(wain.StyleOverride{
+	refs.chatHeader = ui.NewLabel("Select a friend to chat", ui.Size{Width: 100, Height: 6})
+	refs.chatHeader.SetStyle(ui.StyleOverride{
 		Foreground: colorPtr(dimWhite),
 	})
 	chatArea.Add(refs.chatHeader)
 
-	messageScroll := wain.NewScrollView(wain.Size{Width: 100, Height: 82})
-	refs.messageList = wain.NewColumn()
+	messageScroll := ui.NewScrollView(ui.Size{Width: 100, Height: 82})
+	refs.messageList = ui.NewColumn()
 	refs.messageList.SetGap(2)
 	messageScroll.Add(refs.messageList)
 	chatArea.Add(messageScroll)
 
-	inputRow := wain.NewRow()
+	inputRow := ui.NewRow()
 	inputRow.SetGap(4)
 	inputRow.SetPadding(4)
 
-	refs.messageInput = wain.NewTextInput("Type a message...", wain.Size{Width: 80, Height: 100})
+	refs.messageInput = ui.NewTextInput("Type a message...", ui.Size{Width: 80, Height: 100})
 	applyInputStyle(refs.messageInput)
 	inputRow.Add(refs.messageInput)
 
-	sendBtn := wain.NewButton("Send", wain.Size{Width: 20, Height: 100})
+	sendBtn := ui.NewButton("Send", ui.Size{Width: 20, Height: 100})
 	applySendButtonStyle(sendBtn)
 	WireSendButton(sendBtn, refs, backend, state)
 	inputRow.Add(sendBtn)
@@ -92,37 +92,37 @@ func BuildUIWithActions(state *AppState, backend *ToxBackend, app *wain.App) (*w
 	chatArea.Add(inputRow)
 
 	// ─── Body: sidebar + chat ───
-	body := wain.NewRow()
+	body := ui.NewRow()
 	body.SetGap(0)
 
-	sidebarPanel := wain.NewPanel(wain.Size{Width: 25, Height: 100})
+	sidebarPanel := ui.NewPanel(ui.Size{Width: 25, Height: 100})
 	sidebarPanel.Add(sidebar)
 	body.Add(sidebarPanel)
 
-	chatPanel := wain.NewPanel(wain.Size{Width: 75, Height: 100})
+	chatPanel := ui.NewPanel(ui.Size{Width: 75, Height: 100})
 	chatPanel.Add(chatArea)
 	body.Add(chatPanel)
 
 	// ─── Footer row ───
-	footer := wain.NewRow()
+	footer := ui.NewRow()
 	footer.SetPadding(4)
 	footer.SetGap(4)
 	applyFooterStyle(footer.Panel)
 
-	refs.addFriendInput = wain.NewTextInput("Paste Tox ID...", wain.Size{Width: 55, Height: 100})
+	refs.addFriendInput = ui.NewTextInput("Paste Tox ID...", ui.Size{Width: 55, Height: 100})
 	applyInputStyle(refs.addFriendInput)
 	footer.Add(refs.addFriendInput)
 
-	addFriendBtn := wain.NewButton("Add Friend", wain.Size{Width: 15, Height: 100})
-	addFriendBtn.SetStyle(wain.StyleOverride{
+	addFriendBtn := ui.NewButton("Add Friend", ui.Size{Width: 15, Height: 100})
+	addFriendBtn.SetStyle(ui.StyleOverride{
 		Background: colorPtr(toxGreenDark),
-		Foreground: colorPtr(wain.White),
+		Foreground: colorPtr(ui.White),
 	})
 	WireAddFriendButton(addFriendBtn, refs, backend)
 	footer.Add(addFriendBtn)
 
-	refs.toxIdDisplay = wain.NewTextInput("Your Tox ID", wain.Size{Width: 30, Height: 100})
-	refs.toxIdDisplay.SetStyle(wain.StyleOverride{
+	refs.toxIdDisplay = ui.NewTextInput("Your Tox ID", ui.Size{Width: 30, Height: 100})
+	refs.toxIdDisplay.SetStyle(ui.StyleOverride{
 		Background: colorPtr(headerBg),
 		Foreground: colorPtr(dimWhite),
 	})
@@ -130,17 +130,17 @@ func BuildUIWithActions(state *AppState, backend *ToxBackend, app *wain.App) (*w
 	footer.Add(refs.toxIdDisplay)
 
 	// ─── Root column ───
-	root := wain.NewColumn()
+	root := ui.NewColumn()
 
-	headerPanel := wain.NewPanel(wain.Size{Width: 100, Height: 8})
+	headerPanel := ui.NewPanel(ui.Size{Width: 100, Height: 8})
 	headerPanel.Add(header)
 	root.Add(headerPanel)
 
-	bodyPanel := wain.NewPanel(wain.Size{Width: 100, Height: 84})
+	bodyPanel := ui.NewPanel(ui.Size{Width: 100, Height: 84})
 	bodyPanel.Add(body)
 	root.Add(bodyPanel)
 
-	footerPanel := wain.NewPanel(wain.Size{Width: 100, Height: 8})
+	footerPanel := ui.NewPanel(ui.Size{Width: 100, Height: 8})
 	footerPanel.Add(footer)
 	root.Add(footerPanel)
 
@@ -152,7 +152,7 @@ func BuildUIWithActions(state *AppState, backend *ToxBackend, app *wain.App) (*w
 
 // WireSendButton connects the send button click to sending a message.
 // This is called separately since the button reference is captured during BuildUI.
-func WireSendButton(btn *wain.Button, refs *UIRefs, backend *ToxBackend, state *AppState) {
+func WireSendButton(btn *ui.Button, refs *UIRefs, backend *ToxBackend, state *AppState) {
 	btn.OnClick(func() {
 		text := refs.messageInput.Text()
 		if text == "" {
@@ -172,7 +172,7 @@ func WireSendButton(btn *wain.Button, refs *UIRefs, backend *ToxBackend, state *
 }
 
 // WireAddFriendButton connects the add-friend button click to adding a friend.
-func WireAddFriendButton(btn *wain.Button, refs *UIRefs, backend *ToxBackend) {
+func WireAddFriendButton(btn *ui.Button, refs *UIRefs, backend *ToxBackend) {
 	btn.OnClick(func() {
 		address := refs.addFriendInput.Text()
 		if address == "" {
@@ -201,7 +201,7 @@ func rebuildFriendList(refs *UIRefs, state *AppState, backend *ToxBackend) {
 		return
 	}
 
-	newList := wain.NewColumn()
+	newList := ui.NewColumn()
 	newList.SetGap(2)
 
 	selectedIdx := state.GetSelectedFriend()
@@ -211,7 +211,7 @@ func rebuildFriendList(refs *UIRefs, state *AppState, backend *ToxBackend) {
 	for _, req := range pending {
 		pk := req.PublicKey
 		label := fmt.Sprintf("[Request] %.16x", pk[:8])
-		btn := wain.NewButton(label, wain.Size{Width: 100, Height: 12})
+		btn := ui.NewButton(label, ui.Size{Width: 100, Height: 12})
 		applyPendingRequestStyle(btn)
 		btn.OnClick(func() {
 			if err := backend.AcceptFriendRequest(pk); err != nil {
@@ -231,7 +231,7 @@ func rebuildFriendList(refs *UIRefs, state *AppState, backend *ToxBackend) {
 			displayName = fmt.Sprintf("(%d) %s", f.UnreadCount, displayName)
 		}
 
-		btn := wain.NewButton(displayName, wain.Size{Width: 100, Height: 10})
+		btn := ui.NewButton(displayName, ui.Size{Width: 100, Height: 10})
 		if idx == selectedIdx {
 			applyFriendSelectedStyle(btn)
 		} else if f.Online {
@@ -267,7 +267,7 @@ func rebuildChatView(refs *UIRefs, state *AppState) {
 	if !ok {
 		refs.chatHeader.SetText("Select a friend to chat")
 		// Clear stale messages from any previously selected chat.
-		emptyList := wain.NewColumn()
+		emptyList := ui.NewColumn()
 		emptyList.SetGap(2)
 		*refs.messageList = *emptyList
 		return
@@ -285,7 +285,7 @@ func rebuildChatView(refs *UIRefs, state *AppState) {
 		}
 	}
 
-	newList := wain.NewColumn()
+	newList := ui.NewColumn()
 	newList.SetGap(2)
 
 	messages := state.GetMessages(friendID)
@@ -299,16 +299,16 @@ func rebuildChatView(refs *UIRefs, state *AppState) {
 			prefix,
 			msg.Content,
 		)
-		lbl := wain.NewLabel(text, wain.Size{Width: 100, Height: 6})
+		lbl := ui.NewLabel(text, ui.Size{Width: 100, Height: 6})
 		if msg.Outgoing {
-			lbl.SetStyle(wain.StyleOverride{
+			lbl.SetStyle(ui.StyleOverride{
 				Background: colorPtr(messageOwnBg),
-				Foreground: colorPtr(wain.White),
+				Foreground: colorPtr(ui.White),
 			})
 		} else {
-			lbl.SetStyle(wain.StyleOverride{
+			lbl.SetStyle(ui.StyleOverride{
 				Background: colorPtr(messagePeerBg),
-				Foreground: colorPtr(wain.White),
+				Foreground: colorPtr(ui.White),
 			})
 		}
 		newList.Add(lbl)
@@ -318,17 +318,17 @@ func rebuildChatView(refs *UIRefs, state *AppState) {
 	*refs.messageList = *newList
 }
 
-// publicWidgetAdapter bridges a wain.PublicWidget to the internal wain.Widget
+// publicWidgetAdapter bridges a ui.PublicWidget to the internal ui.Widget
 // interface, allowing public widgets to be used with Window.SetRootWidget().
 // It embeds BaseWidget for default implementations and delegates event handling
 // to the wrapped PublicWidget.
 type publicWidgetAdapter struct {
-	wain.BaseWidget
-	public wain.PublicWidget
+	ui.BaseWidget
+	public ui.PublicWidget
 }
 
 // adaptPublicWidget wraps a PublicWidget so it satisfies the Widget interface.
-func adaptPublicWidget(pw wain.PublicWidget) wain.Widget {
+func adaptPublicWidget(pw ui.PublicWidget) ui.Widget {
 	return &publicWidgetAdapter{public: pw}
 }
 
@@ -339,16 +339,16 @@ func (a *publicWidgetAdapter) Contains(x, y float64) bool {
 }
 
 // HandlePointer delegates pointer events to the wrapped PublicWidget.
-func (a *publicWidgetAdapter) HandlePointer(evt *wain.PointerEvent) {
+func (a *publicWidgetAdapter) HandlePointer(evt *ui.PointerEvent) {
 	a.public.HandleEvent(evt)
 }
 
 // HandleKey delegates keyboard events to the wrapped PublicWidget.
-func (a *publicWidgetAdapter) HandleKey(evt *wain.KeyEvent) {
+func (a *publicWidgetAdapter) HandleKey(evt *ui.KeyEvent) {
 	a.public.HandleEvent(evt)
 }
 
 // HandleTouch delegates touch events to the wrapped PublicWidget.
-func (a *publicWidgetAdapter) HandleTouch(evt *wain.TouchEvent) {
+func (a *publicWidgetAdapter) HandleTouch(evt *ui.TouchEvent) {
 	a.public.HandleEvent(evt)
 }

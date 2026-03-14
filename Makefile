@@ -1,15 +1,18 @@
 # dtox – Tox Messenger GUI client
 #
-# Build a statically linked binary using musl and the Rust render library
-# from wain.
+# Cross-platform build targets:
+#   make              – build tox-gui for Linux (static binary using wain/Wayland/X11)
+#   make windows      – build tox-gui.exe for Windows (using wayne/Ebitengine)
+#   make darwin       – build tox-gui-darwin for macOS (using wayne/Ebitengine)
+#   make clean        – remove build artifacts
 #
-# Prerequisites:
+# Prerequisites for Linux static build:
 #   musl-gcc           sudo apt-get install musl-tools
 #   Rust musl target   rustup target add x86_64-unknown-linux-musl
 #
-# Usage:
-#   make              – build tox-gui
-#   make clean        – remove build artifacts
+# Prerequisites for Windows/macOS cross-compilation:
+#   Go cross-compilation support (built-in)
+#   CGO cross-compiler toolchain (for CGO-enabled builds)
 
 SHELL := /bin/bash
 
@@ -31,11 +34,14 @@ RUST_LIB         := $(BUILD_DIR)/target/$(RUST_MUSL_TARGET)/release/librender_sy
 DL_STUB_OBJ      := $(BUILD_DIR)/dl_find_object_stub.o
 
 OUTPUT           := tox-gui
+OUTPUT_WINDOWS   := tox-gui.exe
+OUTPUT_DARWIN    := tox-gui-darwin
 
-.PHONY: all build rust stub clean
+.PHONY: all build rust stub clean windows darwin
 
 all: build
 
+# Linux static build (using wain with Wayland/X11 + GPU rendering)
 build: rust stub
 	CC=$(CC) CGO_ENABLED=1 \
 	  CGO_LDFLAGS="$(RUST_LIB) $(DL_STUB_OBJ) -ldl -lm -lpthread" \
@@ -47,6 +53,28 @@ build: rust stub
 	@echo ""
 	@echo "✓ Built $(OUTPUT)"
 	@file $(OUTPUT) | grep -q "statically linked" && echo "✓ Statically linked" || echo "⚠ Not statically linked"
+
+# Windows build (using wayne with Ebitengine)
+# Note: Cross-compilation from Linux requires CGO_ENABLED=0 or a Windows cross-compiler
+windows:
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+	  go build \
+	    -ldflags "-s -w" \
+	    -o $(OUTPUT_WINDOWS) ./cmd/tox-gui/
+	@echo ""
+	@echo "✓ Built $(OUTPUT_WINDOWS) for Windows/amd64"
+
+# macOS build (using wayne with Ebitengine)
+# Note: Full CGO builds require macOS or a macOS cross-compiler toolchain
+# This target produces a non-CGO build suitable for testing; for production,
+# build natively on macOS with: go build -o tox-gui ./cmd/tox-gui/
+darwin:
+	@GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
+	  go build \
+	    -ldflags "-s -w" \
+	    -o $(OUTPUT_DARWIN) ./cmd/tox-gui/ && \
+	  echo "✓ Built $(OUTPUT_DARWIN) for macOS/amd64" || \
+	  (echo "⚠ macOS build failed. If cross-compiling, ensure you have the necessary toolchain." && exit 1)
 
 rust: $(RUST_LIB)
 
@@ -65,5 +93,5 @@ $(DL_STUB_OBJ):
 	$(CC) -c -o $(DL_STUB_OBJ) "$(WAIN_DIR)/internal/render/dl_find_object_stub.c"
 
 clean:
-	rm -f $(OUTPUT)
+	rm -f $(OUTPUT) $(OUTPUT_WINDOWS) $(OUTPUT_DARWIN)
 	rm -rf $(BUILD_DIR) 2>/dev/null || chmod -R u+w $(BUILD_DIR) 2>/dev/null && rm -rf $(BUILD_DIR) 2>/dev/null; true

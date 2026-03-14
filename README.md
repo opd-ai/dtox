@@ -1,13 +1,50 @@
 # dtox
-tox client using wain
+Tox client with cross-platform GUI support
 
 ## Features
 
 - Tox messaging protocol support
-- Modern GUI using wain
+- **Cross-platform GUI**:
+  - **Linux**: Native Wayland/X11 support using [wain](https://github.com/opd-ai/wain) (GPU rendering, static binary)
+  - **Windows, macOS, Android, iOS**: [wayne](https://github.com/opd-ai/wayne) (Ebitengine-based)
 - **Multiple anonymity network support (Tor and I2P) - enabled by default**
 - Secure peer-to-peer communication
 - Automatic transport selection based on address format
+
+## Building
+
+### Linux (Static Binary)
+
+```sh
+make
+```
+
+This produces a fully static binary using wain's Wayland/X11 + GPU rendering backend.
+
+### Windows
+
+```sh
+make windows
+```
+
+Or cross-compile from any platform:
+```sh
+GOOS=windows GOARCH=amd64 go build -o tox-gui.exe ./cmd/tox-gui/
+```
+
+### macOS
+
+Build natively on macOS:
+```sh
+go build -o tox-gui ./cmd/tox-gui/
+```
+
+Or use the Makefile target (may require cross-compiler):
+```sh
+make darwin
+```
+
+See `Makefile` for all build targets and options.
 
 ## Anonymity Network Support
 
