@@ -190,4 +190,3 @@ var (
 	RGB         = wayne.RGB
 	White       = wayne.White
 )
-
