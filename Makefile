@@ -69,12 +69,12 @@ windows:
 # This target produces a non-CGO build suitable for testing; for production,
 # build natively on macOS with: go build -o tox-gui ./cmd/tox-gui/
 darwin:
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
+	@GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
 	  go build \
 	    -ldflags "-s -w" \
-	    -o $(OUTPUT_DARWIN) ./cmd/tox-gui/ 2>/dev/null || \
-	  echo "⚠ macOS build requires native compilation or a cross-compiler toolchain"
-	@if [ -f $(OUTPUT_DARWIN) ]; then echo "✓ Built $(OUTPUT_DARWIN) for macOS/amd64"; fi
+	    -o $(OUTPUT_DARWIN) ./cmd/tox-gui/ && \
+	  echo "✓ Built $(OUTPUT_DARWIN) for macOS/amd64" || \
+	  (echo "⚠ macOS build failed. If cross-compiling, ensure you have the necessary toolchain." && exit 1)
 
 rust: $(RUST_LIB)
 

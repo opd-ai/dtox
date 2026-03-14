@@ -5,7 +5,11 @@
 // (Ebitengine-based) that add API compatibility methods to match wain's interface.
 package ui
 
-import "github.com/opd-ai/wayne"
+import (
+	"log"
+
+	"github.com/opd-ai/wayne"
+)
 
 // Type aliases for types that don't need extra methods
 type Size = wayne.Size
@@ -22,11 +26,28 @@ type TouchEvent = wayne.TouchEvent
 // App wraps wayne.App to return our wrapped Window type.
 type App struct {
 	*wayne.App
+	onCloseCallbacks []func()
 }
 
 // NewApp creates a new application.
 func NewApp() *App {
 	return &App{App: wayne.NewApp()}
+}
+
+// registerOnClose registers a callback to be called when the app quits.
+func (a *App) registerOnClose(callback func()) {
+	if callback != nil {
+		a.onCloseCallbacks = append(a.onCloseCallbacks, callback)
+	}
+}
+
+// Quit stops the application and invokes all registered OnClose callbacks.
+func (a *App) Quit() {
+	// Invoke all registered OnClose callbacks before quitting
+	for _, cb := range a.onCloseCallbacks {
+		cb()
+	}
+	a.App.Quit()
 }
 
 // NewWindow creates a new window with the specified configuration.
@@ -35,28 +56,45 @@ func (a *App) NewWindow(cfg WindowConfig) (*Window, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Window{Window: win}, nil
+	return &Window{Window: win, app: a}, nil
 }
 
 // Window wraps wayne.Window to add wain-compatible methods.
 type Window struct {
 	*wayne.Window
+	app             *App
 	onCloseCallback func()
 }
 
 // SetRootWidget sets the root widget (delegates to SetRoot for wayne compatibility).
+// This accepts Widget (which includes PublicWidget) for API compatibility with wain.
+// On wayne, we check if the widget implements PublicWidget; if not, we log an error.
 func (w *Window) SetRootWidget(widget Widget) {
 	// Wayne's SetRoot expects PublicWidget, not Widget
 	if pw, ok := widget.(PublicWidget); ok {
 		w.Window.SetRoot(pw)
+	} else {
+		// Log error instead of silently ignoring - helps debugging
+		// Using log.Println for consistent logging with the rest of the application
+		log.Println("ui: SetRootWidget called with non-PublicWidget; root not set (window will be blank)")
 	}
 }
 
+// SetRootPublicWidget sets the root widget directly from a PublicWidget.
+// This is the preferred method on non-Linux platforms as it avoids type assertion.
+func (w *Window) SetRootPublicWidget(pw PublicWidget) {
+	w.Window.SetRoot(pw)
+}
+
 // OnClose registers a callback to be called when the window is closed.
-// Note: Wayne doesn't support OnClose directly, so we provide a no-op.
-// The close callback should be handled at the app level.
+// Since wayne/Ebitengine doesn't have a native window close event, we store
+// the callback and invoke it when the app quits.
 func (w *Window) OnClose(callback func()) {
 	w.onCloseCallback = callback
+	// Register with the app so it can invoke on quit
+	if w.app != nil {
+		w.app.registerOnClose(callback)
+	}
 }
 
 // Column wraps wayne.Column to add SetStyle for wain API compatibility.
