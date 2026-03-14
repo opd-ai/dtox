@@ -1,10 +1,11 @@
-# Tox Messenger GUI — Pure Go Client
+# Tox Messenger GUI — Cross-Platform Client
 
-A Tox Messenger GUI client for Linux, built with
-[wain](https://github.com/opd-ai/wain) (Go GUI toolkit, Wayland/X11, GPU + software rendering)
-and [toxcore](https://github.com/opd-ai/toxcore) (pure Go Tox protocol with Noise-IK encryption).
+A Tox Messenger GUI client with cross-platform support:
 
-The output is a single **statically linked** Linux binary.
+- **Linux**: Built with [wain](https://github.com/opd-ai/wain) (Go GUI toolkit, Wayland/X11, GPU + software rendering). Produces a **statically linked** binary.
+- **Windows, macOS, Android, iOS**: Built with [wayne](https://github.com/opd-ai/wayne) (Ebitengine-based cross-platform GUI).
+
+Both backends use [toxcore](https://github.com/opd-ai/toxcore) (pure Go Tox protocol with Noise-IK encryption).
 
 ## Features
 
@@ -20,7 +21,9 @@ The output is a single **statically linked** Linux binary.
 
 ## Build
 
-### Prerequisites
+### Linux (Static Binary)
+
+#### Prerequisites
 
 | Tool | Install |
 |------|---------|
@@ -29,7 +32,7 @@ The output is a single **statically linked** Linux binary.
 | musl-gcc | `sudo apt-get install musl-tools` (Debian/Ubuntu) |
 | musl Rust target | `rustup target add x86_64-unknown-linux-musl` |
 
-### Quick build
+#### Quick build
 
 ```sh
 make
@@ -40,7 +43,7 @@ This will:
 2. Compile the dl_find_object compatibility stub
 3. Build the Go binary with static linking via musl
 
-### Manual build
+#### Manual build
 
 ```sh
 # 1. Build the Rust rendering library
@@ -60,7 +63,7 @@ CC=musl-gcc CGO_ENABLED=1 \
   go build -ldflags "-extldflags '-static' -s -w" -tags netgo -o tox-gui ./cmd/tox-gui/
 ```
 
-### Verify static linkage
+#### Verify static linkage
 
 ```sh
 file tox-gui
@@ -69,11 +72,38 @@ ldd tox-gui
 # → not a dynamic executable
 ```
 
+### Windows
+
+```sh
+make windows
+```
+
+Or manually:
+```sh
+GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o tox-gui.exe ./cmd/tox-gui/
+```
+
+### macOS
+
+Build natively on macOS:
+```sh
+go build -o tox-gui ./cmd/tox-gui/
+```
+
+Or use the Makefile target (may require a cross-compiler toolchain):
+```sh
+make darwin
+```
+
 ## Runtime Requirements
 
-- Linux (x86_64)
+### Linux
 - Wayland compositor **or** X11 server
 - Network access (UDP port 33445 for DHT bootstrap)
+
+### Windows / macOS
+- Network access (UDP port 33445 for DHT bootstrap)
+- OpenGL or Metal support (for Ebitengine rendering)
 
 ## Architecture
 
@@ -86,6 +116,10 @@ cmd/tox-gui/
 ├── theme.go       Tox-branded dark theme colors and styles
 ├── bootstrap.go   DHT bootstrap node list and connection logic
 └── README.md      This file
+
+internal/ui/
+├── ui_linux.go    Linux platform: re-exports wain types
+└── ui_other.go    Windows/macOS/Android/iOS: wrapper types for wayne
 ```
 
 ### UI Layout
@@ -113,11 +147,21 @@ Window (900×650)
 
 ## Known Limitations
 
+### Linux (wain)
 - The wain widget rendering pipeline is under active development; some visual
   features (e.g., text placeholder rendering, scroll indicators) may not be
   fully rendered yet.
 - The wain library requires CGO for its GPU rendering backend (Rust FFI via
   musl). The Go application code itself contains zero `import "C"` statements.
+
+### Windows / macOS (wayne)
+- Wayne uses Ebitengine which requires OpenGL or Metal support.
+- Some visual features may differ slightly from the Linux version due to
+  different rendering backends.
+- Window close callbacks are not natively supported by Ebitengine; graceful
+  shutdown relies on signal handling.
+
+### All Platforms
 - Message history is in-memory only; it is lost on restart.
   Use `tox.Save()` / `NewFromSavedata()` to persist Tox state (friend list,
   keys) across sessions in a future update.

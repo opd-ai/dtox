@@ -7,7 +7,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/opd-ai/wain"
+	"github.com/opd-ai/dtox/internal/ui"
 )
 
 func main() {
@@ -17,9 +17,9 @@ func main() {
 	// 1. Create shared state.
 	state := NewAppState()
 
-	// 2. Create wain App and set theme.
-	app := wain.NewApp()
-	app.SetTheme(wain.DefaultDark())
+	// 2. Create UI App and set theme.
+	app := ui.NewApp()
+	app.SetTheme(ui.DefaultDark())
 
 	// 3. Create and start Tox backend (before UI so we have the Tox ID).
 	uiRefsPlaceholder := &UIRefs{}
@@ -38,7 +38,7 @@ func main() {
 	backend.Start()
 
 	// 6. Create window and set root widget.
-	win, err := app.NewWindow(wain.WindowConfig{
+	win, err := app.NewWindow(ui.WindowConfig{
 		Title:     "Tox Messenger",
 		Width:     900,
 		Height:    650,
