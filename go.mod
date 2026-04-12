@@ -3,6 +3,7 @@ module github.com/opd-ai/dtox
 go 1.25.0
 
 require (
+	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/opd-ai/toxcore v1.4.0-qtox-preview.0.20260412113747-9989c3575ce7
 	github.com/opd-ai/wain v0.0.0-20260309234308-c8e970047c7d
 )
@@ -12,7 +13,6 @@ require (
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
 	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
-	github.com/hajimehoshi/ebiten/v2 v2.9.9 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.13.3 // indirect
