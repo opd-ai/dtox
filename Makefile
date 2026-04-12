@@ -36,8 +36,9 @@ DL_STUB_OBJ      := $(BUILD_DIR)/dl_find_object_stub.o
 OUTPUT           := tox-gui
 OUTPUT_WINDOWS   := tox-gui.exe
 OUTPUT_DARWIN    := tox-gui-darwin
+OUTPUT_ANDROID   := tox-gui.apk
 
-.PHONY: all build rust stub clean windows darwin
+.PHONY: all build rust stub clean windows darwin android
 
 all: build
 
@@ -76,6 +77,16 @@ darwin:
 	  echo "✓ Built $(OUTPUT_DARWIN) for macOS/amd64" || \
 	  (echo "⚠ macOS build failed. If cross-compiling, ensure you have the necessary toolchain." && exit 1)
 
+# Android APK build (using wayne with Ebitengine via ebitenmobile)
+# Prerequisites:
+#   ebitenmobile    go install github.com/ebitengine/gomobile/cmd/ebitenmobile@latest
+#   Android SDK     ANDROID_HOME must be set
+#   Android NDK     ANDROID_NDK_HOME must be set
+android:
+	ebitenmobile build -target android -o $(OUTPUT_ANDROID) ./cmd/tox-gui/
+	@echo ""
+	@echo "✓ Built $(OUTPUT_ANDROID) for Android"
+
 rust: $(RUST_LIB)
 
 $(RUST_LIB):
@@ -93,5 +104,5 @@ $(DL_STUB_OBJ):
 	$(CC) -c -o $(DL_STUB_OBJ) "$(WAIN_DIR)/internal/render/dl_find_object_stub.c"
 
 clean:
-	rm -f $(OUTPUT) $(OUTPUT_WINDOWS) $(OUTPUT_DARWIN)
+	rm -f $(OUTPUT) $(OUTPUT_WINDOWS) $(OUTPUT_DARWIN) $(OUTPUT_ANDROID)
 	rm -rf $(BUILD_DIR) 2>/dev/null || chmod -R u+w $(BUILD_DIR) 2>/dev/null && rm -rf $(BUILD_DIR) 2>/dev/null; true

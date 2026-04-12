@@ -30,7 +30,7 @@ require (
 	github.com/go-i2p/i2pkeys v0.33.92 // indirect
 	github.com/go-i2p/onramp v0.33.92 // indirect
 	github.com/go-i2p/sam3 v0.33.92 // indirect
-	github.com/opd-ai/wayne v0.0.0-20260310162840-1fe33b8f685e
+	github.com/opd-ai/wayne v0.0.0-20260327193731-a37e78afb9f6
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/rtp v1.8.22 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
