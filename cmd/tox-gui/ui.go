@@ -334,7 +334,7 @@ func adaptPublicWidget(pw ui.PublicWidget) ui.Widget {
 
 // Contains returns true if the point is within the widget's bounds.
 func (a *publicWidgetAdapter) Contains(x, y float64) bool {
-	w, h := a.public.Bounds()
+	w, h := publicWidgetSize(a.public)
 	return x >= 0 && x < float64(w) && y >= 0 && y < float64(h)
 }
 

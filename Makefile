@@ -37,7 +37,7 @@ OUTPUT           := tox-gui
 OUTPUT_WINDOWS   := tox-gui.exe
 OUTPUT_DARWIN    := tox-gui-darwin
 
-.PHONY: all build rust stub clean windows darwin
+.PHONY: all build rust stub clean windows darwin android
 
 all: build
 
@@ -75,6 +75,16 @@ darwin:
 	    -o $(OUTPUT_DARWIN) ./cmd/tox-gui/ && \
 	  echo "✓ Built $(OUTPUT_DARWIN) for macOS/amd64" || \
 	  (echo "⚠ macOS build failed. If cross-compiling, ensure you have the necessary toolchain." && exit 1)
+
+# Android APK build (using wayne with Ebitengine via ebitenmobile)
+# Prerequisites:
+#   ebitenmobile    go install github.com/ebitengine/gomobile/cmd/ebitenmobile@latest
+#   Android SDK     ANDROID_HOME must be set
+#   Android NDK     ANDROID_NDK_HOME must be set
+android:
+	ebitenmobile build -target android -o tox-gui.apk ./cmd/tox-gui/
+	@echo ""
+	@echo "✓ Built tox-gui.apk for Android"
 
 rust: $(RUST_LIB)
 
