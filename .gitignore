@@ -29,6 +29,7 @@ go.work.sum
 
 # Build artifacts
 /tox-gui
+*.apk
 
 # Editor/IDE
 # .idea/

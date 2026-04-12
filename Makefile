@@ -36,6 +36,7 @@ DL_STUB_OBJ      := $(BUILD_DIR)/dl_find_object_stub.o
 OUTPUT           := tox-gui
 OUTPUT_WINDOWS   := tox-gui.exe
 OUTPUT_DARWIN    := tox-gui-darwin
+OUTPUT_ANDROID   := tox-gui.apk
 
 .PHONY: all build rust stub clean windows darwin android
 
@@ -82,9 +83,9 @@ darwin:
 #   Android SDK     ANDROID_HOME must be set
 #   Android NDK     ANDROID_NDK_HOME must be set
 android:
-	ebitenmobile build -target android -o tox-gui.apk ./cmd/tox-gui/
+	ebitenmobile build -target android -o $(OUTPUT_ANDROID) ./cmd/tox-gui/
 	@echo ""
-	@echo "✓ Built tox-gui.apk for Android"
+	@echo "✓ Built $(OUTPUT_ANDROID) for Android"
 
 rust: $(RUST_LIB)
 
@@ -103,5 +104,5 @@ $(DL_STUB_OBJ):
 	$(CC) -c -o $(DL_STUB_OBJ) "$(WAIN_DIR)/internal/render/dl_find_object_stub.c"
 
 clean:
-	rm -f $(OUTPUT) $(OUTPUT_WINDOWS) $(OUTPUT_DARWIN)
+	rm -f $(OUTPUT) $(OUTPUT_WINDOWS) $(OUTPUT_DARWIN) $(OUTPUT_ANDROID)
 	rm -rf $(BUILD_DIR) 2>/dev/null || chmod -R u+w $(BUILD_DIR) 2>/dev/null && rm -rf $(BUILD_DIR) 2>/dev/null; true

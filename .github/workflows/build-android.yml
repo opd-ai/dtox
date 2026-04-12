@@ -36,11 +36,13 @@ jobs:
           sdkmanager --install "ndk;26.1.10909125"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
 
-      - name: Install ebitenmobile
-        run: go install github.com/ebitengine/gomobile/cmd/ebitenmobile@latest
-
       - name: Install dependencies
         run: go mod download
+
+      - name: Install ebitenmobile
+        run: |
+          GOMOBILE_VERSION=$(go list -m -f '{{.Version}}' github.com/ebitengine/gomobile)
+          go install github.com/ebitengine/gomobile/cmd/ebitenmobile@${GOMOBILE_VERSION}
 
       - name: Build Android APK
         run: ebitenmobile build -target android -o tox-gui.apk ./cmd/tox-gui/
