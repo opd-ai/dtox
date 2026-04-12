@@ -79,7 +79,7 @@ darwin:
 
 # Android APK build (using wayne with Ebitengine via ebitenmobile)
 # Prerequisites:
-#   ebitenmobile    go install github.com/ebitengine/gomobile/cmd/ebitenmobile@latest
+#   ebitenmobile    go install github.com/hajimehoshi/ebiten/v2/cmd/ebitenmobile@latest
 #   Android SDK     ANDROID_HOME must be set
 #   Android NDK     ANDROID_NDK_HOME must be set
 android:

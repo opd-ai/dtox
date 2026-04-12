@@ -41,8 +41,8 @@ jobs:
 
       - name: Install ebitenmobile
         run: |
-          GOMOBILE_VERSION=$(go list -m -f '{{.Version}}' github.com/ebitengine/gomobile)
-          go install github.com/ebitengine/gomobile/cmd/ebitenmobile@${GOMOBILE_VERSION}
+          EBITEN_VERSION=$(go list -m -f '{{.Version}}' github.com/hajimehoshi/ebiten/v2)
+          go install github.com/hajimehoshi/ebiten/v2/cmd/ebitenmobile@${EBITEN_VERSION}
 
       - name: Build Android APK
         run: ebitenmobile build -target android -o tox-gui.apk ./cmd/tox-gui/
