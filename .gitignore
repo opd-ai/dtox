@@ -30,6 +30,12 @@ go.work.sum
 # Build artifacts
 /tox-gui
 *.apk
+*.aar
+
+# Android Gradle cache and build output
+android/.gradle/
+android/app/build/
+android/build/
 
 # Editor/IDE
 # .idea/

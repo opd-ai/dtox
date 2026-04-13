@@ -36,7 +36,7 @@ DL_STUB_OBJ      := $(BUILD_DIR)/dl_find_object_stub.o
 OUTPUT           := tox-gui
 OUTPUT_WINDOWS   := tox-gui.exe
 OUTPUT_DARWIN    := tox-gui-darwin
-OUTPUT_ANDROID   := tox-gui.apk
+OUTPUT_ANDROID   := tox-gui.aar
 
 .PHONY: all build rust stub clean windows darwin android
 
@@ -77,13 +77,14 @@ darwin:
 	  echo "✓ Built $(OUTPUT_DARWIN) for macOS/amd64" || \
 	  (echo "⚠ macOS build failed. If cross-compiling, ensure you have the necessary toolchain." && exit 1)
 
-# Android APK build (using wayne with Ebitengine via ebitenmobile)
+# Android AAR build (using the mobile package with Ebitengine via ebitenmobile)
+# Produces an .aar library for use in an Android project (see android/ directory).
 # Prerequisites:
 #   ebitenmobile    go install github.com/hajimehoshi/ebiten/v2/cmd/ebitenmobile@latest
 #   Android SDK     ANDROID_HOME must be set
 #   Android NDK     ANDROID_NDK_HOME must be set
 android:
-	ebitenmobile build -target android -o $(OUTPUT_ANDROID) ./cmd/tox-gui/
+	ebitenmobile bind -target android -javapkg go -o $(OUTPUT_ANDROID) ./mobile/
 	@echo ""
 	@echo "✓ Built $(OUTPUT_ANDROID) for Android"
 

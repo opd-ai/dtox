@@ -44,12 +44,23 @@ jobs:
           EBITEN_VERSION=$(go list -m -f '{{.Version}}' github.com/hajimehoshi/ebiten/v2)
           go install github.com/hajimehoshi/ebiten/v2/cmd/ebitenmobile@${EBITEN_VERSION}
 
-      - name: Build Android APK
-        run: ebitenmobile build -target android -o tox-gui.apk ./cmd/tox-gui/
+      - name: Build Android AAR
+        run: |
+          mkdir -p android/app/libs
+          ebitenmobile bind -target android -javapkg go \
+            -o android/app/libs/tox-gui.aar \
+            ./mobile/
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: tox-gui-android
-          path: tox-gui.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
