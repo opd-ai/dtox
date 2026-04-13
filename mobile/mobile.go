@@ -1,3 +1,5 @@
+//go:build android
+
 // Package mobile provides the Android entry point for the Tox Messenger application.
 // It is used with ebitenmobile bind to produce an .aar library for Android.
 //
