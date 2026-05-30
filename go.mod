@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
-	github.com/opd-ai/toxcore v1.4.0-qtox-preview.0.20260412113747-9989c3575ce7
+	github.com/opd-ai/toxcore v1.4.0-qtox-preview.0.20260529222831-2ca1077585a6
 	github.com/opd-ai/wain v0.0.0-20260309234308-c8e970047c7d
 )
 
@@ -17,8 +17,9 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.13.3 // indirect
 	github.com/opd-ai/magnum v0.0.0-20260324142352-b5664a8a5c6a // indirect
-	github.com/opd-ai/vp8 v0.0.0-20260404155915-65198b6115cb // indirect
+	github.com/opd-ai/vp8 v0.0.0-20260407023446-a01cf06c95d4 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/xlab/libvpx-go v0.0.0-20220203233824-652b2616315c // indirect
 	golang.org/x/image v0.38.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
