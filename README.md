@@ -142,6 +142,155 @@ The multi-transport system supports the following network types:
 - **I2P**: .i2p destinations via SAM bridge
 - **Nym**: .nym mixnet addresses (experimental)
 
+## Tor-over-Tox Bridge Integration
+
+dtox provides a **Tor-over-Tox bridge** module that enables seamless integration with peer-to-peer Tox bridges for enhanced privacy and resilience. This feature is fully implemented and ready for use by Go Tox client developers.
+
+### Bridge Overview
+
+The bridge provides:
+- **SOCKS5 Proxy**: Listen on 127.0.0.1:19050 for transparent Tor traffic routing
+- **Automatic Failover**: Routes traffic through available Tox friend bridges with graceful fallback to direct Tor
+- **Dynamic Bridge Discovery**: Automatically detects and uses available Tox friend bridges
+- **Simple Integration**: Single-function initialization for Go clients
+
+### How It Works
+
+The bridge implements a failover state machine:
+
+1. **Primary Route**: When Tox friend bridges are available, traffic is routed through them
+2. **Fallback Route**: If no Tox friends are available, traffic falls back to direct Tor
+3. **Automatic Detection**: Bridge monitors Tox friend availability and switches routes automatically
+4. **Transparent**: No client-side logic needed - the bridge handles routing automatically
+
+### Integration for Go Clients
+
+Minimal integration required - just 3 steps:
+
+```go
+import (
+    "github.com/opd-ai/dtox/internal/anonymity"
+    "github.com/opd-ai/dtox/internal/bridge"
+)
+
+func initBridge() (*bridge.TOXBridge, error) {
+    // 1. Initialize multi-transport manager
+    transportMgr := anonymity.NewMultiTransportManager()
+    multiTransport := transportMgr.GetMultiTransport()
+    
+    // 2. Create bridge (enabled by default)
+    return bridge.NewTOXBridge(multiTransport, true)
+}
+
+func main() {
+    b, err := initBridge()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer b.Close()
+    
+    // 3. Configure your client to use SOCKS5 proxy at 127.0.0.1:19050
+    // Bridge handles everything else automatically
+    
+    // Query bridge status if needed
+    status := b.Status()
+    log.Printf("Bridge running: %v, Tox friends: %d", 
+        status.Enabled, status.ActiveToxFriends)
+}
+```
+
+### Bridge API
+
+**Initialization:**
+```go
+bridge, err := bridge.NewTOXBridge(multiTransport, enabled bool)
+```
+
+**Status Query:**
+```go
+status := bridge.Status()
+// Returns: Enabled, ListeningAddr, ActiveToxFriends, TorAvailable, 
+//          LastFailoverUpdate, TotalConnections
+```
+
+**Shutdown:**
+```go
+err := bridge.Close() // Graceful shutdown, safe to call multiple times
+```
+
+### Configuration
+
+The bridge uses environment variables inherited from the multi-transport system:
+- `TOR_CONTROL_ADDR`: Tor control port (default: `127.0.0.1:9051`)
+- `I2P_SAM_ADDR`: I2P SAM bridge (default: `127.0.0.1:7656`)
+
+### Example Usage
+
+See `examples/bridge_integration.go` for a complete working example:
+
+```bash
+go run examples/bridge_integration.go
+```
+
+The example demonstrates:
+- Bridge initialization
+- Status monitoring
+- Graceful shutdown
+- Integration patterns for production applications
+
+### SOCKS5 Compatibility
+
+The bridge implements full SOCKS5 protocol support (RFC 1928):
+- ✅ CONNECT command (TCP connections)
+- ✅ IPv4, IPv6, and domain address types
+- ✅ No authentication (SOCKS5AuthNoAuth)
+- ✅ Connection relay and bidirectional streaming
+
+External SOCKS5 clients can connect:
+```bash
+# curl with SOCKS5 proxy
+curl --socks5 127.0.0.1:19050 https://example.onion
+
+# Tor Browser with SOCKS5 proxy
+# Configure Proxy Address: 127.0.0.1, Port: 19050, Type: SOCKS5
+```
+
+### Failover State Machine
+
+The bridge maintains an internal state machine that tracks:
+- Current routing mode (Tox friends vs. direct Tor)
+- Number of active Tox friend bridges
+- Tor availability status
+- Last state transition time
+
+State transitions are logged for debugging:
+```
+[Bridge] Failover state transition: RouteDirect → RouteToxFriends (friends=2, tor=true)
+```
+
+### Testing
+
+Comprehensive test suite included:
+
+```bash
+go test ./internal/bridge/... -v
+```
+
+Tests cover:
+- Bridge initialization and lifecycle
+- SOCKS5 protocol handling
+- Failover state machine transitions
+- Concurrency and thread safety
+- Connection tracking and metrics
+
+### Zero Breaking Changes
+
+The bridge integration:
+- ✅ Non-invasive to existing dtox functionality
+- ✅ Optional feature (disabled by passing `enabled=false`)
+- ✅ No changes to toxcore or transport APIs
+- ✅ Backward compatible with existing code
+
 ## Building
 
 See `Makefile` for build instructions.
