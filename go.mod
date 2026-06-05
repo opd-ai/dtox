@@ -17,6 +17,7 @@ require (
 	github.com/jezek/xgb v1.1.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.13.3 // indirect
+	github.com/opd-ai/go-tor v0.0.0-20260524064806-f73c7e3be679 // indirect
 	github.com/opd-ai/magnum v0.0.0-20260324142352-b5664a8a5c6a // indirect
 	github.com/opd-ai/vp8 v0.0.0-20260407023446-a01cf06c95d4 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect

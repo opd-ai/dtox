@@ -18,9 +18,11 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
+	torclient "github.com/opd-ai/go-tor/pkg/client"
 	"github.com/opd-ai/toxcore/transport"
 )
 
@@ -29,6 +31,8 @@ const (
 	DefaultSOCKSAddr = "127.0.0.1:19050"
 	// SOCKSAddrEnvVar overrides the SOCKS5 listen address when set
 	SOCKSAddrEnvVar = "DTOX_BRIDGE_SOCKS_ADDR"
+	// UseGoTorEnvVar enables go-tor as the SOCKS5 server implementation
+	UseGoTorEnvVar = "DTOX_BRIDGE_USE_GO_TOR"
 	// FailoverCheckInterval is how often we check Tox friend availability
 	FailoverCheckInterval = 10 * time.Second
 )
@@ -50,6 +54,7 @@ type TOXBridge struct {
 	enabled      bool
 	listenAddr   string
 	transportMgr *transport.MultiTransport
+	torClient    *torclient.SimpleClient
 
 	// Server state
 	listener   net.Listener
@@ -108,6 +113,10 @@ func NewTOXBridge(transportMgr *transport.MultiTransport, enabled bool) (*TOXBri
 // start initializes the SOCKS5 proxy listener and begins accepting connections.
 // This is called automatically from NewTOXBridge if enabled=true.
 func (b *TOXBridge) start() error {
+	if os.Getenv(UseGoTorEnvVar) == "1" {
+		return b.startGoTorClient()
+	}
+
 	b.listenerMu.Lock()
 	defer b.listenerMu.Unlock()
 
@@ -130,6 +139,36 @@ func (b *TOXBridge) start() error {
 	// Start the failover state machine update loop
 	go b.updateFailoverState()
 
+	return nil
+}
+
+func (b *TOXBridge) startGoTorClient() error {
+	host, portStr, err := net.SplitHostPort(b.listenAddr)
+	if err != nil {
+		return fmt.Errorf("invalid listen address %q: %w", b.listenAddr, err)
+	}
+
+	if host != "127.0.0.1" && host != "localhost" {
+		return fmt.Errorf("go-tor mode requires loopback host, got %q", host)
+	}
+
+	socksPort, err := strconv.Atoi(portStr)
+	if err != nil {
+		return fmt.Errorf("invalid SOCKS port %q: %w", portStr, err)
+	}
+
+	controlPort := socksPort + 1
+	tor, err := torclient.ConnectWithOptions(&torclient.Options{
+		SocksPort:   socksPort,
+		ControlPort: controlPort,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start go-tor client: %w", err)
+	}
+
+	b.torClient = tor
+	b.listenAddr = tor.ProxyAddr()
+	log.Printf("[Bridge] go-tor SOCKS5 proxy listening on %s", b.listenAddr)
 	return nil
 }
 
@@ -210,6 +249,10 @@ func (b *TOXBridge) getActiveToxFriends() int {
 
 // isTorAvailable checks if Tor is currently available by attempting a light connectivity check
 func (b *TOXBridge) isTorAvailable() bool {
+	if b.torClient != nil {
+		return true
+	}
+
 	// Quick check by trying to get supported networks that include "tor"
 	networks := b.transportMgr.GetSupportedNetworks()
 	for _, net := range networks {
@@ -276,6 +319,13 @@ func (b *TOXBridge) Close() error {
 			return fmt.Errorf("failed to close listener: %w", err)
 		}
 		log.Printf("[Bridge] SOCKS5 proxy on %s closed", b.listenAddr)
+	}
+
+	if b.torClient != nil {
+		if err := b.torClient.Close(); err != nil {
+			return fmt.Errorf("failed to close go-tor client: %w", err)
+		}
+		b.torClient = nil
 	}
 
 	return nil
