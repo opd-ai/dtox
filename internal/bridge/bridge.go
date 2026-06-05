@@ -70,8 +70,8 @@ type TOXBridge struct {
 //   - transportMgr: The multi-transport manager for routing (typically from anonymity.MultiTransportManager)
 //   - enabled: If true, bridge starts immediately; if false, bridge is created but inactive
 //
-// Returns nil if bridge initialization succeeds; the bridge will be listening on 127.0.0.1:19050
-func NewTOXBridge(transportMgr *transport.MultiTransport, enabled bool) (*TOXBridge, error) {
+// Returns a non-nil *TOXBridge and a nil error on success. When enabled is true,
+// the bridge will be listening on DefaultSOCKSAddr before this function returns.
 	if transportMgr == nil {
 		return nil, fmt.Errorf("transport manager required")
 	}
