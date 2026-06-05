@@ -8,6 +8,8 @@ Tox client with cross-platform GUI support
   - **Linux**: Native Wayland/X11 support using [wain](https://github.com/opd-ai/wain) (GPU rendering, static binary)
   - **Windows, macOS, Android, iOS**: [wayne](https://github.com/opd-ai/wayne) (Ebitengine-based)
 - **Multiple anonymity network support (Tor and I2P) - enabled by default**
+- **Embedded Tor SOCKS proxy** for local Tor access (via [opd-ai/go-tor](https://github.com/opd-ai/go-tor))
+- **Tor-over-Tox bridge** for friend-accessible Tor routing (via [opd-ai/toxpt](https://github.com/opd-ai/toxpt))
 - Secure peer-to-peer communication
 - Automatic transport selection based on address format
 
@@ -141,6 +143,95 @@ The multi-transport system supports the following network types:
 - **Tor**: .onion hidden services
 - **I2P**: .i2p destinations via SAM bridge
 - **Nym**: .nym mixnet addresses (experimental)
+
+## Tor Bridge Integration
+
+dtox includes an embedded **dual-service Tor bridge** that enables both local Tor access and Tor routing for your Tox friends:
+
+### Components
+
+1. **SOCKS Proxy Service** (via [opd-ai/go-tor](https://github.com/opd-ai/go-tor))
+   - Local Tor access on `127.0.0.1:19050`
+   - For applications that require SOCKS5 proxy support
+   - Always-on by default
+
+2. **Tor-over-Tox Bridge Service** (via [opd-ai/toxpt](https://github.com/opd-ai/toxpt))
+   - Allows connected Tox friends to route their Tor traffic through you
+   - Friend-only access (not exposed externally)
+   - Always-on by default
+
+### Independent Operation
+
+Both services run concurrently and independently:
+- If SOCKS proxy fails, the bridge continues operating
+- If bridge fails, SOCKS proxy continues operating
+- Failure of one service does not affect the other
+
+### Configuration
+
+Both services are **enabled by default**. To disable either service (or customize the SOCKS port), developers can modify the `TorBridgeConfig` in `cmd/tox-gui/backend.go`:
+
+```go
+torBridgeConfig := torbridge.DefaultConfig()
+torBridgeConfig.EnableSOCKS = true  // Local SOCKS proxy on 127.0.0.1:19050
+torBridgeConfig.EnableBridge = true // Friend-accessible bridge
+torBridgeConfig.ToxInstance = tox
+tb, err := torbridge.New(context.Background(), torBridgeConfig)
+```
+
+### Integration for Library Users
+
+For Go Tox client developers, integrating the Tor bridge is straightforward:
+
+```go
+import "github.com/opd-ai/dtox/internal/torbridge"
+
+// After creating your Tox instance:
+config := torbridge.DefaultConfig()
+config.ToxInstance = toxInstance
+
+tb, err := torbridge.New(context.Background(), config)
+if err != nil {
+    log.Printf("Tor bridge unavailable: %v", err)
+    // Application continues with Tox-only mode
+}
+defer tb.Close()
+
+// Access services:
+if tb != nil && tb.IsSOCKSEnabled() {
+    log.Printf("SOCKS proxy: %s", tb.GetSOCKSAddr())
+}
+if tb != nil && tb.IsBridgeEnabled() {
+    log.Println("Tor-over-Tox bridge active for friends")
+}
+```
+
+### Minimal Integration Code
+
+The integration requires less than 150 lines of code and maintains **zero breaking changes** to existing Tor or Tox APIs:
+- Both services leverage existing implementations from [opd-ai/go-tor](https://github.com/opd-ai/go-tor) and [opd-ai/toxpt](https://github.com/opd-ai/toxpt)
+- No Tor compilation or management required
+- No transport duplication
+- Comprehensive inline documentation
+
+### Startup Logging
+
+When dtox starts, you'll see status messages:
+```
+Tor bridge services initialized:
+  - SOCKS proxy: 127.0.0.1:19050 (local Tor access)
+  - Tor-over-Tox bridge: friend-accessible
+```
+
+If bridge initialization fails (e.g., missing dependencies), dtox continues in Tox-only mode:
+```
+Failed to initialize Tor bridge services: [error details]
+Continuing with Tox-only mode. To enable Tor bridge:
+  - Ensure opd-ai/go-tor is available for SOCKS proxy
+  - Ensure opd-ai/toxpt is available for bridge
+```
+
+
 
 ## Building
 

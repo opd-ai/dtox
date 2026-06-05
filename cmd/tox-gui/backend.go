@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sort"
 	"time"
 
 	"github.com/opd-ai/dtox/internal/anonymity"
+	"github.com/opd-ai/dtox/internal/torbridge"
 	"github.com/opd-ai/dtox/internal/ui"
 	toxcore "github.com/opd-ai/toxcore"
 )
@@ -19,11 +21,13 @@ type ToxBackend struct {
 	uiRefs           *UIRefs
 	done             chan struct{}
 	transportManager *anonymity.MultiTransportManager
+	torBridge        *torbridge.TorBridge
 }
 
 // NewToxBackend creates a new backend, initializes the Tox instance,
 // and registers all callbacks. It also initializes the multi-transport
-// system for Tor and I2P support when those services are available.
+// system for Tor and I2P support when those services are available,
+// and the dual-service Tor bridge (SOCKS proxy + Tor-over-Tox bridge).
 func NewToxBackend(state *AppState, app *ui.App, uiRefs *UIRefs) (*ToxBackend, error) {
 	// Initialize multi-transport manager for anonymity network support
 	// This automatically registers IP, Tor, I2P, and Nym transports
@@ -58,6 +62,31 @@ func NewToxBackend(state *AppState, app *ui.App, uiRefs *UIRefs) (*ToxBackend, e
 		uiRefs:           uiRefs,
 		done:             make(chan struct{}),
 		transportManager: transportManager,
+		torBridge:        nil,
+	}
+
+	// Initialize Tor Bridge services: SOCKS proxy + Tor-over-Tox bridge
+	// Both services run concurrently and independently; failure of one does not
+	// affect the other. Initialization failure is logged but doesn't prevent
+	// the Tox client from running normally.
+	torBridgeConfig := torbridge.DefaultConfig()
+	torBridgeConfig.ToxInstance = tox
+	tb, err := torbridge.New(context.Background(), torBridgeConfig)
+	if err != nil {
+		// Log the error but don't fail - Tox client can still run without Tor bridge
+		log.Printf("Failed to initialize Tor bridge services: %v", err)
+		log.Println("Continuing with Tox-only mode. To enable Tor bridge:")
+		log.Println("  - Ensure opd-ai/go-tor is available for SOCKS proxy")
+		log.Println("  - Ensure opd-ai/toxpt is available for bridge")
+	} else {
+		b.torBridge = tb
+		log.Printf("Tor bridge services initialized:")
+		if tb.IsSOCKSEnabled() {
+			log.Printf("  - SOCKS proxy: %s (local Tor access)", tb.GetSOCKSAddr())
+		}
+		if tb.IsBridgeEnabled() {
+			log.Printf("  - Tor-over-Tox bridge: friend-accessible")
+		}
 	}
 
 	b.registerCallbacks()
@@ -82,7 +111,7 @@ func (b *ToxBackend) Start() {
 	}()
 }
 
-// Stop shuts down the Tox instance, transport manager, and stops the event loop.
+// Stop shuts down the Tox instance, transport manager, Tor bridge, and stops the event loop.
 func (b *ToxBackend) Stop() {
 	select {
 	case <-b.done:
@@ -91,6 +120,13 @@ func (b *ToxBackend) Stop() {
 		close(b.done)
 	}
 	b.tox.Kill()
+
+	// Close the Tor bridge (both SOCKS proxy and bridge services)
+	if b.torBridge != nil {
+		if err := b.torBridge.Close(); err != nil {
+			log.Printf("Error closing Tor bridge: %v", err)
+		}
+	}
 
 	// Close the transport manager to release anonymity network resources
 	if b.transportManager != nil {
@@ -112,6 +148,12 @@ func (b *ToxBackend) GetTransportStatuses() map[string]anonymity.TransportStatus
 		return nil
 	}
 	return b.transportManager.GetTransportStatuses()
+}
+
+// GetTorBridge returns the TorBridge instance managing SOCKS proxy and bridge services.
+// May be nil if Tor bridge initialization failed.
+func (b *ToxBackend) GetTorBridge() *torbridge.TorBridge {
+	return b.torBridge
 }
 
 // SendMessage sends a text message to the given friend.
