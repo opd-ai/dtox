@@ -265,20 +265,28 @@ func (h *SOCKS5Handler) relay(client, target net.Conn) error {
 
 	// Copy from client to target
 	go func() {
-		if _, err := io.Copy(target, client); err != nil && err != io.EOF {
-			errChan <- err
-		} else {
-			errChan <- nil
+		_, copyErr := io.Copy(target, client)
+		if tcp, ok := target.(*net.TCPConn); ok {
+			_ = tcp.CloseWrite()
 		}
+		if copyErr != nil && copyErr != io.EOF {
+			errChan <- copyErr
+			return
+		}
+		errChan <- nil
 	}()
 
 	// Copy from target to client
 	go func() {
-		if _, err := io.Copy(client, target); err != nil && err != io.EOF {
-			errChan <- err
-		} else {
-			errChan <- nil
+		_, copyErr := io.Copy(client, target)
+		if tcp, ok := client.(*net.TCPConn); ok {
+			_ = tcp.CloseWrite()
 		}
+		if copyErr != nil && copyErr != io.EOF {
+			errChan <- copyErr
+			return
+		}
+		errChan <- nil
 	}()
 
 	// Wait for both goroutines to finish
