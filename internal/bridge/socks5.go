@@ -190,8 +190,7 @@ func (h *SOCKS5Handler) readRequest() (byte, string, error) {
 		return 0, "", fmt.Errorf("unsupported address type: %d", addrType)
 	}
 
-	return cmd, fmt.Sprintf("%s:%d", addr, port), nil
-}
+	return cmd, net.JoinHostPort(addr, fmt.Sprintf("%d", port)), nil
 
 // handleConnect processes a SOCKS5 CONNECT command
 // Routes the connection through the failover state machine
