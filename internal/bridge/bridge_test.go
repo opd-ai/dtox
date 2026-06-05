@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -259,6 +260,29 @@ func TestBridgeListenerBinding(t *testing.T) {
 	// Verify SOCKS5 response format
 	if response[0] != 0x05 {
 		t.Errorf("Expected SOCKS5 version 0x05, got 0x%02x", response[0])
+	}
+}
+
+func TestBridgeConfigurableListenAddress(t *testing.T) {
+	t.Setenv(SOCKSAddrEnvVar, "127.0.0.1:0")
+
+	tm := anonymity.NewMultiTransportManager()
+	defer tm.Close()
+
+	mt := tm.GetMultiTransport()
+
+	bridge, err := NewTOXBridge(mt, true)
+	if err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+	defer bridge.Close()
+
+	status := bridge.Status()
+	if status.ListeningAddr == DefaultSOCKSAddr {
+		t.Fatalf("expected dynamic listen address, got default %s", status.ListeningAddr)
+	}
+	if !strings.HasPrefix(status.ListeningAddr, "127.0.0.1:") {
+		t.Fatalf("unexpected listen address: %s", status.ListeningAddr)
 	}
 }
 

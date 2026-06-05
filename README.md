@@ -159,12 +159,12 @@ The bridge provides:
 
 The bridge implements a failover state machine:
 
-1. **Primary Route**: When Tox friend bridges are available, traffic is routed through them
-2. **Fallback Route**: If no Tox friends are available, traffic falls back to direct Tor
-3. **Automatic Detection**: Bridge monitors Tox friend availability and switches routes automatically
-4. **Transparent**: No client-side logic needed - the bridge handles routing automatically
+1. **Primary Route**: When your application reports Tox friend bridges as available, the bridge enters `RouteToxFriends`
+2. **Fallback Route**: If no Tox friends are available, the bridge falls back to direct routing
+3. **Status Tracking**: Bridge continuously updates failover state and Tor availability
+4. **Transparent SOCKS5 Endpoint**: Clients connect only to the local SOCKS5 proxy
 
-### Integration for Go Clients
+### Integration for Go Clients (inside this module)
 
 Minimal integration required - just 3 steps:
 
@@ -180,7 +180,12 @@ func initBridge() (*bridge.TOXBridge, error) {
     multiTransport := transportMgr.GetMultiTransport()
     
     // 2. Create bridge (enabled by default)
-    return bridge.NewTOXBridge(multiTransport, true)
+    b, err := bridge.NewTOXBridge(multiTransport, true)
+    if err != nil {
+        return nil, err
+    }
+    b.SetActiveToxFriends(0) // update this count as bridge peers come/go
+    return b, nil
 }
 
 func main() {
@@ -199,6 +204,9 @@ func main() {
         status.Enabled, status.ActiveToxFriends)
 }
 ```
+
+For third-party applications outside this repository, use the bridge as a local SOCKS5 service
+instead of importing `internal/*` packages directly.
 
 ### Bridge API
 

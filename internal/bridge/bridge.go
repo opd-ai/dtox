@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -26,6 +27,8 @@ import (
 const (
 	// DefaultSOCKSAddr is the default SOCKS5 proxy address
 	DefaultSOCKSAddr = "127.0.0.1:19050"
+	// SOCKSAddrEnvVar overrides the SOCKS5 listen address when set
+	SOCKSAddrEnvVar = "DTOX_BRIDGE_SOCKS_ADDR"
 	// FailoverCheckInterval is how often we check Tox friend availability
 	FailoverCheckInterval = 10 * time.Second
 )
@@ -44,23 +47,25 @@ type BridgeStatus struct {
 // between Tox friend routes and direct Tor connectivity.
 type TOXBridge struct {
 	// Configuration
-	enabled       bool
-	listenAddr    string
-	transportMgr  *transport.MultiTransport
-	
+	enabled      bool
+	listenAddr   string
+	transportMgr *transport.MultiTransport
+
 	// Server state
-	listener      net.Listener
-	listenerMu    sync.Mutex
-	closed        bool
-	closedMu      sync.Mutex
-	done          chan struct{}
-	
+	listener   net.Listener
+	listenerMu sync.Mutex
+	closed     bool
+	closedMu   sync.Mutex
+	done       chan struct{}
+
 	// Failover state machine
 	failover      *FailoverState
-	
+	activeFriends int
+	activeMu      sync.RWMutex
+
 	// Connection tracking
-	connCount     int64
-	connCountMu   sync.Mutex
+	connCount   int64
+	connCountMu sync.Mutex
 }
 
 // NewTOXBridge creates and initializes a new Tor-over-Tox bridge.
@@ -72,13 +77,19 @@ type TOXBridge struct {
 //
 // Returns a non-nil *TOXBridge and a nil error on success. When enabled is true,
 // the bridge will be listening on DefaultSOCKSAddr before this function returns.
+func NewTOXBridge(transportMgr *transport.MultiTransport, enabled bool) (*TOXBridge, error) {
 	if transportMgr == nil {
 		return nil, fmt.Errorf("transport manager required")
 	}
 
+	listenAddr := DefaultSOCKSAddr
+	if configuredAddr := os.Getenv(SOCKSAddrEnvVar); configuredAddr != "" {
+		listenAddr = configuredAddr
+	}
+
 	bridge := &TOXBridge{
 		enabled:      enabled,
-		listenAddr:   DefaultSOCKSAddr,
+		listenAddr:   listenAddr,
 		transportMgr: transportMgr,
 		done:         make(chan struct{}),
 		failover:     NewFailoverState(),
@@ -110,6 +121,7 @@ func (b *TOXBridge) start() error {
 	}
 
 	b.listener = listener
+	b.listenAddr = listener.Addr().String()
 	log.Printf("[Bridge] SOCKS5 proxy listening on %s", b.listenAddr)
 
 	// Start the connection accept loop in a goroutine
@@ -171,11 +183,29 @@ func (b *TOXBridge) updateFailoverState() {
 		case <-ticker.C:
 			// Update failover state with current Tor availability
 			torAvailable := b.isTorAvailable()
-			b.failover.Update(0, torAvailable) // 0 Tox friends for now (will be expanded)
+			activeFriends := b.getActiveToxFriends()
+			b.failover.Update(activeFriends, torAvailable)
 			log.Printf("[Bridge] Failover state updated: Tor=%v, ToxFriends=%d",
-				torAvailable, 0)
+				torAvailable, activeFriends)
 		}
 	}
+}
+
+// SetActiveToxFriends updates the number of currently available Tox friend bridges.
+func (b *TOXBridge) SetActiveToxFriends(count int) {
+	if count < 0 {
+		count = 0
+	}
+	b.activeMu.Lock()
+	b.activeFriends = count
+	b.activeMu.Unlock()
+	b.failover.Update(count, b.isTorAvailable())
+}
+
+func (b *TOXBridge) getActiveToxFriends() int {
+	b.activeMu.RLock()
+	defer b.activeMu.RUnlock()
+	return b.activeFriends
 }
 
 // isTorAvailable checks if Tor is currently available by attempting a light connectivity check

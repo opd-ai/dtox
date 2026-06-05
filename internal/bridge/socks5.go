@@ -13,9 +13,9 @@ import (
 // SOCKS5Handler processes incoming SOCKS5 connections and routes them through
 // the appropriate transport (Tox friends or direct Tor).
 type SOCKS5Handler struct {
-	client   net.Conn
+	client    net.Conn
 	transport *transport.MultiTransport
-	failover *FailoverState
+	failover  *FailoverState
 }
 
 // SOCKS5 protocol constants
@@ -23,22 +23,22 @@ const (
 	// SOCKS5 version
 	SOCKS5Version = 0x05
 	// SOCKS5 command opcodes
-	SOCKS5CmdConnect   = 0x01
-	SOCKS5CmdBind      = 0x02
-	SOCKS5CmdUDPAssoc  = 0x03
+	SOCKS5CmdConnect  = 0x01
+	SOCKS5CmdBind     = 0x02
+	SOCKS5CmdUDPAssoc = 0x03
 	// SOCKS5 address types
 	SOCKS5AddrTypeIPv4   = 0x01
 	SOCKS5AddrTypeDomain = 0x03
 	SOCKS5AddrTypeIPv6   = 0x04
 	// SOCKS5 reply codes
-	SOCKS5ReplySuccess             = 0x00
-	SOCKS5ReplyServerFailure       = 0x01
+	SOCKS5ReplySuccess              = 0x00
+	SOCKS5ReplyServerFailure        = 0x01
 	SOCKS5ReplyConnectionNotAllowed = 0x02
-	SOCKS5ReplyNetworkUnreachable  = 0x03
-	SOCKS5ReplyHostUnreachable     = 0x04
-	SOCKS5ReplyConnectionRefused   = 0x05
-	SOCKS5ReplyTTLExpired          = 0x06
-	SOCKS5ReplyCmdNotSupported     = 0x07
+	SOCKS5ReplyNetworkUnreachable   = 0x03
+	SOCKS5ReplyHostUnreachable      = 0x04
+	SOCKS5ReplyConnectionRefused    = 0x05
+	SOCKS5ReplyTTLExpired           = 0x06
+	SOCKS5ReplyCmdNotSupported      = 0x07
 	SOCKS5ReplyAddrTypeNotSupported = 0x08
 	// Authentication methods
 	SOCKS5AuthNoAuth = 0x00
@@ -48,9 +48,9 @@ const (
 // NewSOCKS5Handler creates a new SOCKS5 connection handler
 func NewSOCKS5Handler(client net.Conn, tm *transport.MultiTransport, fs *FailoverState) *SOCKS5Handler {
 	return &SOCKS5Handler{
-		client:   client,
+		client:    client,
 		transport: tm,
-		failover: fs,
+		failover:  fs,
 	}
 }
 
@@ -191,6 +191,7 @@ func (h *SOCKS5Handler) readRequest() (byte, string, error) {
 	}
 
 	return cmd, net.JoinHostPort(addr, fmt.Sprintf("%d", port)), nil
+}
 
 // handleConnect processes a SOCKS5 CONNECT command
 // Routes the connection through the failover state machine
