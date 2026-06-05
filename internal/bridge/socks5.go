@@ -93,27 +93,35 @@ func (h *SOCKS5Handler) Handle() error {
 
 // handleGreeting processes the SOCKS5 greeting (authentication method negotiation)
 func (h *SOCKS5Handler) handleGreeting() error {
-	buf := make([]byte, 256)
-	n, err := h.client.Read(buf)
-	if err != nil {
-		return fmt.Errorf("failed to read greeting: %w", err)
+	// Read greeting header: [version, nmethods]
+	header := make([]byte, 2)
+	if _, err := io.ReadFull(h.client, header); err != nil {
+		return fmt.Errorf("failed to read greeting header: %w", err)
 	}
 
-	// Parse greeting: [version, nmethods, methods...]
-	if n < 2 || buf[0] != SOCKS5Version {
-		return fmt.Errorf("invalid SOCKS5 version: %d", buf[0])
+	if header[0] != SOCKS5Version {
+		return fmt.Errorf("invalid SOCKS5 version: %d", header[0])
 	}
 
-	nmethods := int(buf[1])
-	if n < 2+nmethods {
-		return fmt.Errorf("incomplete greeting: expected %d methods, got %d", nmethods, n-2)
+	nmethods := int(header[1])
+	methods := make([]byte, nmethods)
+	if _, err := io.ReadFull(h.client, methods); err != nil {
+		return fmt.Errorf("failed to read greeting methods: %w", err)
 	}
 
-	// We only support no authentication (0x00)
-	// Respond with [version, selected_method]
-	response := []byte{SOCKS5Version, SOCKS5AuthNoAuth}
-	if _, err := h.client.Write(response); err != nil {
+	selected := byte(SOCKS5AuthNone)
+	for _, m := range methods {
+		if m == SOCKS5AuthNoAuth {
+			selected = SOCKS5AuthNoAuth
+			break
+		}
+	}
+
+	if _, err := h.client.Write([]byte{SOCKS5Version, selected}); err != nil {
 		return fmt.Errorf("failed to send greeting response: %w", err)
+	}
+	if selected == SOCKS5AuthNone {
+		return fmt.Errorf("no acceptable auth methods")
 	}
 
 	return nil
