@@ -149,10 +149,11 @@ dtox provides a **Tor-over-Tox bridge** module that enables seamless integration
 ### Bridge Overview
 
 The bridge provides:
-- **SOCKS5 Proxy**: Listen on 127.0.0.1:19050 for transparent Tor traffic routing
-- **Automatic Failover**: Routes traffic through available Tox friend bridges with graceful fallback to direct Tor
-- **Dynamic Bridge Discovery**: Automatically detects and uses available Tox friend bridges
+- **SOCKS5 Proxy**: Listen on 127.0.0.1:19050 for transparent traffic routing
+- **Failover State Machine**: Chooses between direct routing and (future) Tox-friend routes
+- **Status & Metrics**: Exposes connection counts and failover state
 - **Simple Integration**: Single-function initialization for Go clients
+
 
 ### How It Works
 
