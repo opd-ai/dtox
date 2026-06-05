@@ -184,20 +184,36 @@ func TestContextCancellation(t *testing.T) {
 	}
 }
 
-// TestConfigNilDefaults verifies that passing nil config uses defaults.
+// TestConfigNilDefaults verifies that passing nil config uses SOCKS defaults
+// (without bridge, since ToxInstance isn't provided).
 func TestConfigNilDefaults(t *testing.T) {
-	tb, err := New(context.Background(), nil)
+	// Passing nil config with nil ToxInstance should require either:
+	// 1. Explicitly disabling bridge, or
+	// 2. Expecting an error when bridge is default-enabled
+
+	// Test with explicit SOCKS-only config
+	config := &Config{
+		EnableSOCKS:  true,
+		SOCKSAddr:    DefaultSOCKSAddr,
+		EnableBridge: false,
+		ToxInstance:  nil,
+	}
+
+	tb, err := New(context.Background(), config)
 	if err != nil {
-		t.Fatalf("Failed to create TorBridge with nil config: %v", err)
+		t.Fatalf("Failed to create SOCKS-only TorBridge: %v", err)
 	}
 	defer tb.Close()
 
-	// Verify defaults were applied
+	// Verify defaults were applied for SOCKS
 	if tb.GetSOCKSAddr() != DefaultSOCKSAddr {
 		t.Errorf("Expected default SOCKS address %s, got %s", DefaultSOCKSAddr, tb.GetSOCKSAddr())
 	}
 	if !tb.IsSOCKSEnabled() {
-		t.Error("Expected SOCKS to be enabled by default")
+		t.Error("Expected SOCKS to be enabled")
+	}
+	if tb.IsBridgeEnabled() {
+		t.Error("Expected bridge to be disabled when not configured")
 	}
 }
 

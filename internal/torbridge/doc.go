@@ -1,35 +1,35 @@
 package torbridge
 
-import (
-	"context"
-	"log"
-
-	"github.com/opd-ai/toxcore"
-)
-
 // ExampleUsage demonstrates how a Go Tox client initializes both the SOCKS proxy
 // and Tor-over-Tox bridge services with a single function call.
 //
 // This is a minimal example showing the typical integration pattern:
 //
+//	import (
+//	    "context"
+//	    "log"
+//	    "github.com/opd-ai/toxcore"
+//	    "github.com/opd-ai/dtox/internal/torbridge"
+//	)
+//
 //	// 1. Initialize Tox instance (or get existing instance)
 //	tox, err := toxcore.New(options)
 //	if err != nil {
-//		log.Fatal(err)
+//	    log.Fatal(err)
 //	}
 //
 //	// 2. Create TorBridge config (using defaults or custom settings)
 //	config := &torbridge.Config{
-//		EnableSOCKS:  true,
-//		SOCKSAddr:    torbridge.DefaultSOCKSAddr,
-//		EnableBridge: true,
-//		ToxInstance:  tox,
+//	    EnableSOCKS:  true,
+//	    SOCKSAddr:    torbridge.DefaultSOCKSAddr,
+//	    EnableBridge: true,
+//	    ToxInstance:  tox,
 //	}
 //
 //	// 3. Initialize TorBridge - starts both services
 //	tb, err := torbridge.New(context.Background(), config)
 //	if err != nil {
-//		log.Fatal(err)
+//	    log.Fatal(err)
 //	}
 //
 //	// 4. Access services
@@ -51,14 +51,14 @@ func ExampleUsage() {
 // Useful for clients that only need local Tor access.
 //
 //	config := &torbridge.Config{
-//		EnableSOCKS:  true,
-//		SOCKSAddr:    torbridge.DefaultSOCKSAddr,
-//		EnableBridge: false, // Disabled
+//	    EnableSOCKS:  true,
+//	    SOCKSAddr:    torbridge.DefaultSOCKSAddr,
+//	    EnableBridge: false, // Disabled
 //	}
 //
 //	tb, err := torbridge.New(context.Background(), config)
 //	if err != nil {
-//		log.Fatal(err)
+//	    log.Fatal(err)
 //	}
 //	defer tb.Close()
 //
@@ -69,15 +69,15 @@ func ExampleSOCKSOnlyMode() {
 // ExampleCustomSOCKSPort demonstrates running the SOCKS proxy on a custom port.
 //
 //	config := &torbridge.Config{
-//		EnableSOCKS: true,
-//		SOCKSAddr:   "127.0.0.1:9050", // Custom port
-//		EnableBridge: true,
-//		ToxInstance: tox,
+//	    EnableSOCKS: true,
+//	    SOCKSAddr:   "127.0.0.1:9050", // Custom port
+//	    EnableBridge: true,
+//	    ToxInstance: tox,
 //	}
 //
 //	tb, err := torbridge.New(context.Background(), config)
 //	if err != nil {
-//		log.Fatal(err)
+//	    log.Fatal(err)
 //	}
 //	defer tb.Close()
 //
@@ -90,12 +90,12 @@ func ExampleCustomSOCKSPort() {
 //
 //	tb, err := torbridge.New(context.Background(), config)
 //	if err != nil {
-//		log.Fatal(err)
+//	    log.Fatal(err)
 //	}
 //
 //	// On shutdown (e.g., in a signal handler or defer block)
 //	if err := tb.Close(); err != nil {
-//		log.Printf("Error closing TorBridge: %v", err)
+//	    log.Printf("Error closing TorBridge: %v", err)
 //	}
 //	// Services are now stopped and resources released
 //
@@ -106,11 +106,11 @@ func ExampleGracefulShutdown() {
 // ExampleChecking verifies which services are currently enabled.
 //
 //	if tb.IsSOCKSEnabled() {
-//		log.Printf("SOCKS proxy available at: %s", tb.GetSOCKSAddr())
+//	    log.Printf("SOCKS proxy available at: %s", tb.GetSOCKSAddr())
 //	}
 //
 //	if tb.IsBridgeEnabled() {
-//		log.Println("Tor-over-Tox bridge active (accessible to friends)")
+//	    log.Println("Tor-over-Tox bridge active (accessible to friends)")
 //	}
 //
 func ExampleChecking() {
@@ -131,17 +131,17 @@ func ExampleChecking() {
 // STEP 3: Create TorBridge
 //	tb, err := torbridge.New(context.Background(), config)
 //	if err != nil {
-//		log.Printf("Failed to initialize Tor services: %v", err)
-//		// Application can still run with just Tox
+//	    log.Printf("Failed to initialize Tor services: %v", err)
+//	    // Application can still run with just Tox
 //	}
 //
 // STEP 4: Shutdown on application exit
 //	defer func() {
-//		if tb != nil {
-//			if err := tb.Close(); err != nil {
-//				log.Printf("Error closing TorBridge: %v", err)
-//			}
-//		}
+//	    if tb != nil {
+//	        if err := tb.Close(); err != nil {
+//	            log.Printf("Error closing TorBridge: %v", err)
+//	        }
+//	    }
 //	}()
 //
 // STEP 5: Use services
