@@ -8,7 +8,7 @@ Tox client with cross-platform GUI support
   - **Linux**: Native Wayland/X11 support using [wain](https://github.com/opd-ai/wain) (GPU rendering, static binary)
   - **Windows, macOS, Android, iOS**: [wayne](https://github.com/opd-ai/wayne) (Ebitengine-based)
 - **Multiple anonymity network support (Tor and I2P) - enabled by default**
-- **Embedded Tor SOCKS proxy** for local Tor access (via [opd-ai/go-tor](https://github.com/opd-ai/go-tor))
+- **Embedded SOCKS endpoint listener** for local integrations
 - **Tor-over-Tox bridge** for friend-accessible Tor routing (via [opd-ai/toxpt](https://github.com/opd-ai/toxpt))
 - Secure peer-to-peer communication
 - Automatic transport selection based on address format
@@ -169,7 +169,7 @@ Both services run concurrently and independently:
 
 ### Configuration
 
-Both services are **enabled by default**. To disable either service (or customize the SOCKS port), developers can modify the `TorBridgeConfig` in `cmd/tox-gui/backend.go`:
+Both services are **enabled by default**. To disable either service (or customize the SOCKS port), developers can modify the `torBridgeConfig` (`torbridge.Config`) in `cmd/tox-gui/backend.go`:
 
 ```go
 torBridgeConfig := torbridge.DefaultConfig()
@@ -179,12 +179,12 @@ torBridgeConfig.ToxInstance = tox
 tb, err := torbridge.New(context.Background(), torBridgeConfig)
 ```
 
-### Integration for Library Users
+### Integration in dtox
 
-For Go Tox client developers, integrating the Tor bridge is straightforward:
+For dtox contributors, integrating the Tor bridge is straightforward:
 
 ```go
-import "github.com/opd-ai/dtox/internal/torbridge"
+import "github.com/opd-ai/dtox/internal/torbridge" // internal: only importable from dtox module
 
 // After creating your Tox instance:
 config := torbridge.DefaultConfig()
@@ -223,16 +223,17 @@ Tor bridge services initialized:
   - Tor-over-Tox bridge: friend-accessible
 ```
 
-If bridge initialization fails (e.g., missing dependencies), dtox continues in Tox-only mode:
+If bridge initialization fails, dtox continues in Tox-only mode:
 ```
 Failed to initialize Tor bridge services: [error details]
 Continuing with Tox-only mode. To enable Tor bridge:
-  - Ensure opd-ai/go-tor is available for SOCKS proxy
-  - Ensure opd-ai/toxpt is available for bridge
+  - Ensure requested listener ports are available and permitted
+  - Check torbridge configuration (SOCKSAddr, EnableBridge, ToxInstance)
+  - Review torbridge initialization errors in startup logs
 ```
 
 
 
-## Building
+## Build Reference
 
 See `Makefile` for build instructions.

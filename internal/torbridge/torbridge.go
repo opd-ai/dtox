@@ -1,9 +1,9 @@
 // Package torbridge provides a minimal integration layer enabling Go Tox clients
-// to run both an embedded Tor SOCKS proxy (via opd-ai/go-tor) and a Tor-over-Tox
-// bridge (via opd-ai/toxpt) for friend-accessible Tor routing.
+// to run a local SOCKS endpoint listener and a Tor-over-Tox bridge (via opd-ai/toxpt)
+// for friend-accessible Tor routing.
 //
 // Component Separation:
-// - SOCKS Proxy: Local-use Tor proxy on 127.0.0.1:19050 for direct Tor access
+// - SOCKS Endpoint: Local listener on 127.0.0.1:19050 for SOCKS clients
 // - Tor-over-Tox Bridge: Friend-accessible bridge for remote Tor routing
 //
 // Both services run independently and concurrently; failure of one does not
@@ -80,19 +80,15 @@ func DefaultConfig() *Config {
 }
 
 // New creates and initializes a new TorBridge with the given configuration.
-// It starts both the SOCKS proxy and bridge services concurrently.
-// Returns an error if either service fails to initialize (unless disabled in config).
+// It starts enabled services independently and continues when at least one requested
+// service initializes successfully.
+// Returns an error only when no requested service could be initialized.
 //
 // Resource Management:
 // The returned TorBridge must be closed via Close() to release resources properly.
 func New(ctx context.Context, config *Config) (*TorBridge, error) {
 	if config == nil {
 		config = DefaultConfig()
-	}
-
-	// Validate bridge requirements
-	if config.EnableBridge && config.ToxInstance == nil {
-		return nil, fmt.Errorf("EnableBridge requires ToxInstance to be set")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -103,28 +99,42 @@ func New(ctx context.Context, config *Config) (*TorBridge, error) {
 		cancel: cancel,
 	}
 
-	// SOCKS Proxy Service: Handles local Tor access
-	// Component: opd-ai/go-tor SOCKS implementation on specified address
+	var initErrs []error
+	startedAnyService := false
+
+	// SOCKS endpoint service
 	if config.EnableSOCKS {
 		if err := tb.initializeSOCKSProxy(); err != nil {
-			cancel()
-			return nil, fmt.Errorf("failed to initialize SOCKS proxy: %w", err)
+			initErrs = append(initErrs, fmt.Errorf("failed to initialize SOCKS proxy: %w", err))
+		} else {
+			startedAnyService = true
+			log.Printf("Tor SOCKS endpoint started on %s (local use)", tb.socksAddr)
 		}
-		log.Printf("Tor SOCKS proxy started on %s (local use)", tb.socksAddr)
 	}
 
-	// Tor-over-Tox Bridge Service: Handles friend-accessible Tor routing
-	// Component: opd-ai/toxpt bridge implementation for Tox friend connectivity
+	// Tor-over-Tox bridge service
 	if config.EnableBridge {
-		if err := tb.initializeToxBridge(); err != nil {
-			// Close SOCKS proxy if it was started, then fail
-			if config.EnableSOCKS {
-				_ = tb.closeSOCKSProxy()
-			}
-			cancel()
-			return nil, fmt.Errorf("failed to initialize Tor-over-Tox bridge: %w", err)
+		var err error
+		if config.ToxInstance == nil {
+			err = fmt.Errorf("EnableBridge requires ToxInstance to be set")
+		} else {
+			err = tb.initializeToxBridge()
 		}
-		log.Printf("Tor-over-Tox bridge initialized (friend-accessible)")
+		if err != nil {
+			initErrs = append(initErrs, fmt.Errorf("failed to initialize Tor-over-Tox bridge: %w", err))
+		} else {
+			startedAnyService = true
+			log.Printf("Tor-over-Tox bridge initialized (friend-accessible)")
+		}
+	}
+
+	if !startedAnyService && (config.EnableSOCKS || config.EnableBridge) {
+		cancel()
+		return nil, fmt.Errorf("failed to initialize requested Tor bridge services: %v", initErrs)
+	}
+
+	if len(initErrs) > 0 {
+		log.Printf("TorBridge started with partial service availability: %v", initErrs)
 	}
 
 	return tb, nil
@@ -145,20 +155,14 @@ func (tb *TorBridge) initializeSOCKSProxy() error {
 		addr = DefaultSOCKSAddr
 	}
 
-	// Create SOCKS server instance from go-tor.
-	// Note: Full SOCKS initialization would require circuit manager setup.
-	// For minimal integration, we listen on the configured address and
-	// provide a placeholder that allows other Tor clients to connect.
-	// Production use should initialize circuit.Manager and logger.Logger.
+	// Minimal SOCKS endpoint listener for local integrations.
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", addr, err)
 	}
 
-	// Start accepting connections in background.
-	// The server would be fully initialized in production with proper circuit management.
+	// Accept and immediately close incoming connections.
 	go func() {
-		// Accept connections and handle them
 		for tb.ctx.Err() == nil {
 			conn, err := listener.Accept()
 			if err != nil {
@@ -167,12 +171,11 @@ func (tb *TorBridge) initializeSOCKSProxy() error {
 				}
 				break
 			}
-			// Connection handling would be implemented in production
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 
-	tb.socksAddr = addr
+	tb.socksAddr = listener.Addr().String()
 	tb.socksListen = listener
 
 	return nil
@@ -188,6 +191,7 @@ func (tb *TorBridge) closeSOCKSProxy() error {
 			return fmt.Errorf("failed to close SOCKS listener: %w", err)
 		}
 		tb.socksListen = nil
+		tb.socksAddr = ""
 	}
 
 	return nil
@@ -196,12 +200,15 @@ func (tb *TorBridge) closeSOCKSProxy() error {
 // initializeToxBridge sets up the friend-accessible Tor-over-Tox bridge service.
 // This provides bridge connectivity via opd-ai/toxpt for connected Tox friends only.
 func (tb *TorBridge) initializeToxBridge() error {
-	tb.bridgeMu.Lock()
-	defer tb.bridgeMu.Unlock()
-
-	if tb.closed {
+	tb.mu.RLock()
+	closed := tb.closed
+	tb.mu.RUnlock()
+	if closed {
 		return fmt.Errorf("TorBridge is closed")
 	}
+
+	tb.bridgeMu.Lock()
+	defer tb.bridgeMu.Unlock()
 
 	// Create bridge configuration with Tox instance.
 	// When AllowedFriends is nil/empty, the bridge dynamically uses the friend list from ToxClient.
@@ -246,14 +253,14 @@ func (tb *TorBridge) GetSOCKSAddr() string {
 func (tb *TorBridge) IsSOCKSEnabled() bool {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
-	return tb.config.EnableSOCKS
+	return tb.socksListen != nil
 }
 
 // IsBridgeEnabled returns whether the Tor-over-Tox bridge service is enabled.
 func (tb *TorBridge) IsBridgeEnabled() bool {
 	tb.bridgeMu.RLock()
 	defer tb.bridgeMu.RUnlock()
-	return tb.config.EnableBridge
+	return tb.toxBridge != nil
 }
 
 // Close cleanly shuts down both services and releases all resources.

@@ -76,8 +76,9 @@ func NewToxBackend(state *AppState, app *ui.App, uiRefs *UIRefs) (*ToxBackend, e
 		// Log the error but don't fail - Tox client can still run without Tor bridge
 		log.Printf("Failed to initialize Tor bridge services: %v", err)
 		log.Println("Continuing with Tox-only mode. To enable Tor bridge:")
-		log.Println("  - Ensure opd-ai/go-tor is available for SOCKS proxy")
-		log.Println("  - Ensure opd-ai/toxpt is available for bridge")
+		log.Println("  - Ensure requested listener ports are available and permitted")
+		log.Println("  - Check torbridge configuration (SOCKSAddr, EnableBridge, ToxInstance)")
+		log.Println("  - Review torbridge initialization errors in startup logs")
 	} else {
 		b.torBridge = tb
 		log.Printf("Tor bridge services initialized:")
@@ -337,11 +338,11 @@ func (b *ToxBackend) syncFriendList() {
 			name = FormatPublicKeyShort(f.PublicKey)
 		}
 		entries = append(entries, FriendEntry{
-			ID:               id,
-			Name:             name,
-			StatusMessage:    f.StatusMessage,
-			Online:           online,
-			ConnectionType:   connType,
+			ID:                id,
+			Name:              name,
+			StatusMessage:     f.StatusMessage,
+			Online:            online,
+			ConnectionType:    connType,
 			PublicKeyShortHex: FormatPublicKeyShort(f.PublicKey),
 		})
 	}

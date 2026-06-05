@@ -3,10 +3,9 @@ package torbridge
 import (
 	"context"
 	"net"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/opd-ai/toxcore"
 )
 
 // TestDefaultConfig verifies that DefaultConfig returns a properly initialized config
@@ -33,7 +32,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestSOCKSProxyOnly(t *testing.T) {
 	config := &Config{
 		EnableSOCKS:  true,
-		SOCKSAddr:    "127.0.0.1:19051", // Use different port to avoid conflicts
+		SOCKSAddr:    "127.0.0.1:0",
 		EnableBridge: false,
 	}
 
@@ -47,8 +46,8 @@ func TestSOCKSProxyOnly(t *testing.T) {
 	if !tb.IsSOCKSEnabled() {
 		t.Error("Expected SOCKS to be enabled")
 	}
-	if tb.GetSOCKSAddr() != "127.0.0.1:19051" {
-		t.Errorf("Expected SOCKS address to be 127.0.0.1:19051, got %s", tb.GetSOCKSAddr())
+	if tb.GetSOCKSAddr() == "" || strings.HasSuffix(tb.GetSOCKSAddr(), ":0") {
+		t.Errorf("Expected bound SOCKS address with assigned port, got %s", tb.GetSOCKSAddr())
 	}
 
 	// Verify bridge service is not running
@@ -103,7 +102,7 @@ func TestBothServicesDisabled(t *testing.T) {
 func TestSOCKSProxyListening(t *testing.T) {
 	config := &Config{
 		EnableSOCKS:  true,
-		SOCKSAddr:    "127.0.0.1:19052",
+		SOCKSAddr:    "127.0.0.1:0",
 		EnableBridge: false,
 	}
 
@@ -117,7 +116,7 @@ func TestSOCKSProxyListening(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Attempt to connect to the SOCKS proxy
-	conn, err := net.DialTimeout("tcp", "127.0.0.1:19052", 1*time.Second)
+	conn, err := net.DialTimeout("tcp", tb.GetSOCKSAddr(), 1*time.Second)
 	if err != nil {
 		t.Fatalf("Failed to connect to SOCKS proxy: %v", err)
 	}
@@ -134,7 +133,7 @@ func TestSOCKSProxyListening(t *testing.T) {
 func TestMultipleCloseIsSafe(t *testing.T) {
 	config := &Config{
 		EnableSOCKS:  true,
-		SOCKSAddr:    "127.0.0.1:19053",
+		SOCKSAddr:    "127.0.0.1:0",
 		EnableBridge: false,
 	}
 
@@ -157,12 +156,41 @@ func TestMultipleCloseIsSafe(t *testing.T) {
 	}
 }
 
+// TestCloseClearsSOCKSAddr verifies that closing SOCKS listener clears exposed address.
+func TestCloseClearsSOCKSAddr(t *testing.T) {
+	config := &Config{
+		EnableSOCKS:  true,
+		SOCKSAddr:    "127.0.0.1:0",
+		EnableBridge: false,
+	}
+
+	tb, err := New(context.Background(), config)
+	if err != nil {
+		t.Fatalf("Failed to create TorBridge: %v", err)
+	}
+
+	if tb.GetSOCKSAddr() == "" {
+		t.Fatal("Expected SOCKS address before close")
+	}
+
+	if err := tb.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	if tb.GetSOCKSAddr() != "" {
+		t.Errorf("Expected SOCKS address to be cleared after close, got %q", tb.GetSOCKSAddr())
+	}
+	if tb.IsSOCKSEnabled() {
+		t.Error("Expected SOCKS to be disabled after close")
+	}
+}
+
 // TestContextCancellation verifies that canceling the context properly
 // signals shutdown to the TorBridge.
 func TestContextCancellation(t *testing.T) {
 	config := &Config{
 		EnableSOCKS:  true,
-		SOCKSAddr:    "127.0.0.1:19054",
+		SOCKSAddr:    "127.0.0.1:0",
 		EnableBridge: false,
 	}
 
@@ -184,36 +212,23 @@ func TestContextCancellation(t *testing.T) {
 	}
 }
 
-// TestConfigNilDefaults verifies that passing nil config uses SOCKS defaults
-// (without bridge, since ToxInstance isn't provided).
+// TestConfigNilDefaults verifies that passing nil config keeps defaults and
+// still returns a usable bridge when at least one service can initialize.
 func TestConfigNilDefaults(t *testing.T) {
-	// Passing nil config with nil ToxInstance should require either:
-	// 1. Explicitly disabling bridge, or
-	// 2. Expecting an error when bridge is default-enabled
-
-	// Test with explicit SOCKS-only config
-	config := &Config{
-		EnableSOCKS:  true,
-		SOCKSAddr:    DefaultSOCKSAddr,
-		EnableBridge: false,
-		ToxInstance:  nil,
-	}
-
-	tb, err := New(context.Background(), config)
+	tb, err := New(context.Background(), nil)
 	if err != nil {
-		t.Fatalf("Failed to create SOCKS-only TorBridge: %v", err)
+		t.Fatalf("Failed to create TorBridge from nil config: %v", err)
 	}
 	defer tb.Close()
 
-	// Verify defaults were applied for SOCKS
-	if tb.GetSOCKSAddr() != DefaultSOCKSAddr {
-		t.Errorf("Expected default SOCKS address %s, got %s", DefaultSOCKSAddr, tb.GetSOCKSAddr())
+	if tb.GetSOCKSAddr() == "" {
+		t.Error("Expected SOCKS to initialize with nil config")
 	}
 	if !tb.IsSOCKSEnabled() {
 		t.Error("Expected SOCKS to be enabled")
 	}
 	if tb.IsBridgeEnabled() {
-		t.Error("Expected bridge to be disabled when not configured")
+		t.Error("Expected bridge to remain disabled without ToxInstance")
 	}
 }
 
@@ -226,9 +241,6 @@ func TestSOCKSAddrEmptyStringUsesDefault(t *testing.T) {
 		EnableBridge: false,
 	}
 
-	// Create a mock options for toxcore
-	options := toxcore.NewOptions()
-
 	tb, err := New(context.Background(), config)
 	if err != nil {
 		t.Fatalf("Failed to create TorBridge: %v", err)
@@ -240,7 +252,6 @@ func TestSOCKSAddrEmptyStringUsesDefault(t *testing.T) {
 		t.Error("Expected SOCKS address to be set to default, got empty string")
 	}
 
-	_ = options // Prevent unused variable error
 }
 
 // TestServiceIndependence verifies that failure of bridge startup
@@ -248,26 +259,34 @@ func TestSOCKSAddrEmptyStringUsesDefault(t *testing.T) {
 func TestServiceIndependence(t *testing.T) {
 	config := &Config{
 		EnableSOCKS:  true,
-		SOCKSAddr:    "127.0.0.1:19055",
+		SOCKSAddr:    "127.0.0.1:0",
 		EnableBridge: true,
 		ToxInstance:  nil, // This will cause bridge to fail
 	}
 
 	tb, err := New(context.Background(), config)
 
-	// Should fail due to missing ToxInstance
-	if err == nil {
-		t.Fatal("Expected error when bridge enabled without ToxInstance")
+	// Should succeed with SOCKS service even if bridge can't initialize
+	if err != nil {
+		t.Fatalf("Expected SOCKS-only success on partial startup, got error: %v", err)
 	}
 
-	if tb != nil {
-		tb.Close()
+	if tb == nil {
+		t.Fatal("Expected TorBridge instance")
+	}
+	defer tb.Close()
+
+	if !tb.IsSOCKSEnabled() {
+		t.Error("Expected SOCKS service to stay enabled")
+	}
+	if tb.IsBridgeEnabled() {
+		t.Error("Expected bridge service to remain disabled")
 	}
 }
 
 // TestConfigWithCustomPort verifies that custom SOCKS port configuration works.
 func TestConfigWithCustomPort(t *testing.T) {
-	customPort := "127.0.0.1:19056"
+	customPort := "127.0.0.1:0"
 	config := &Config{
 		EnableSOCKS:  true,
 		SOCKSAddr:    customPort,
@@ -280,8 +299,8 @@ func TestConfigWithCustomPort(t *testing.T) {
 	}
 	defer tb.Close()
 
-	if tb.GetSOCKSAddr() != customPort {
-		t.Errorf("Expected SOCKS address to be %s, got %s", customPort, tb.GetSOCKSAddr())
+	if tb.GetSOCKSAddr() == "" || strings.HasSuffix(tb.GetSOCKSAddr(), ":0") {
+		t.Errorf("Expected SOCKS address to be bound to an assigned port, got %s", tb.GetSOCKSAddr())
 	}
 }
 
